@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>S7CommPlusClient</RootNamespace>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Bson" Version="3.4.2" />
+    <PackageReference Include="MongoDB.Driver" Version="3.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\S7CommPlusDriver\src\S7CommPlusDriver\S7CommPlusDriver.csproj" />
+  </ItemGroup>
+
+</Project>

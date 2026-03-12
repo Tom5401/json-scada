@@ -560,7 +560,7 @@ func main() {
 
 			protocolConn.ReadRequest, err = reqBld.Build()
 			if err != nil {
-				log.Printf(protocolConn.Name + ": error preparing read-request: %s")
+				log.Printf("%s", protocolConn.Name+": error preparing read-request: %s")
 				log.Fatal(err)
 			}
 
