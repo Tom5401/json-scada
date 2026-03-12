@@ -185,6 +185,8 @@ partial class MainClass
     {
         if (rawValue == null) return null;
 
+        rawValue = UnwrapPValue(rawValue);
+
         double dblValue = 0;
         string strValue = "";
         string jsonValue = "";
@@ -296,6 +298,52 @@ partial class MainClass
             conn_name = srv.name,
             display_name = address,
             path = ExtractPathFromName(address),
+        };
+    }
+
+    static object UnwrapPValue(object rawValue)
+    {
+        return rawValue switch
+        {
+            ValueBool value => value.GetValue(),
+            ValueBoolArray value => value.GetValue(),
+            ValueByte value => value.GetValue(),
+            ValueByteArray value => value.GetValue(),
+            ValueUSInt value => value.GetValue(),
+            ValueUSIntArray value => value.GetValue(),
+            ValueSInt value => value.GetValue(),
+            ValueSIntArray value => value.GetValue(),
+            ValueWord value => value.GetValue(),
+            ValueWordArray value => value.GetValue(),
+            ValueUInt value => value.GetValue(),
+            ValueUIntArray value => value.GetValue(),
+            ValueInt value => value.GetValue(),
+            ValueIntArray value => value.GetValue(),
+            ValueDWord value => value.GetValue(),
+            ValueDWordArray value => value.GetValue(),
+            ValueUDInt value => value.GetValue(),
+            ValueUDIntArray value => value.GetValue(),
+            ValueDInt value => value.GetValue(),
+            ValueDIntArray value => value.GetValue(),
+            ValueLWord value => value.GetValue(),
+            ValueLWordArray value => value.GetValue(),
+            ValueULInt value => value.GetValue(),
+            ValueULIntArray value => value.GetValue(),
+            ValueLInt value => value.GetValue(),
+            ValueLIntArray value => value.GetValue(),
+            ValueReal value => value.GetValue(),
+            ValueRealArray value => value.GetValue(),
+            ValueLReal value => value.GetValue(),
+            ValueLRealArray value => value.GetValue(),
+            ValueWString value => value.GetValue(),
+            ValueWStringArray value => value.GetValue(),
+            ValueTimestamp value => ValueTimestamp.ToString(value.GetValue()),
+            ValueTimestampArray value => value.GetValue(),
+            ValueTimespan value => ValueTimespan.ToString(value.GetValue()),
+            ValueTimespanArray value => value.GetValue(),
+            ValueBlob value => value.GetValue(),
+            ValueBlobArray value => value.GetValue(),
+            _ => rawValue,
         };
     }
 }

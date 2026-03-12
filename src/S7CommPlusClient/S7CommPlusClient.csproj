@@ -16,4 +16,11 @@
     <ProjectReference Include="..\..\..\S7CommPlusDriver\src\S7CommPlusDriver\S7CommPlusDriver.csproj" />
   </ItemGroup>
 
+  <Target Name="CopyOpenSSLDlls" AfterTargets="Build">
+    <ItemGroup>
+      <OpenSSLDlls Include="..\..\..\S7CommPlusDriver\src\S7CommPlusDriver\OpenSSL-dll-x64\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(OpenSSLDlls)" DestinationFolder="$(OutputPath)" />
+  </Target>
+
 </Project>
