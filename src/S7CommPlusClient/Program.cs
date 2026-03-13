@@ -61,7 +61,10 @@ partial class MainClass
     public static string RealtimeDataCollectionName = "realtimeData";
     public static string SoeDataCollectionName = "soeData";
     public static string CommandsQueueCollectionName = "commandsQueue";
+    public static string ActiveTagRequestsCollectionName = "activeTagRequests";
     public static int ProtocolDriverInstanceNumber = 1;
+    public static MongoClient MongoClientInstance;
+    public static IMongoDatabase MongoDatabase;
 
     public static ConcurrentQueue<S7CPValue> DataQueue = new ConcurrentQueue<S7CPValue>();
     public static List<S7CP_connection> S7CPconns = new List<S7CP_connection>();
@@ -119,6 +122,9 @@ partial class MainClass
 
         var Client = ConnectMongoClient(JSConfig);
         var DB = Client.GetDatabase(JSConfig.mongoDatabaseName);
+        MongoClientInstance = Client;
+        MongoDatabase = DB;
+        EnsureActiveTagRequestIndexes(DB);
 
         // read and process instances configuration
         var collinsts = DB.GetCollection<protocolDriverInstancesClass>(ProtocolDriverInstancesCollectionName);

@@ -31,7 +31,12 @@ const QUERYJSON_AP = '/queryJSON' // API Access point for special custom queries
 const COLL_REALTIME = 'realtimeData'
 const COLL_SOE = 'soeData'
 const COLL_COMMANDS = 'commandsQueue'
+const COLL_ACTIVE_TAG_REQUESTS = 'activeTagRequests'
 const COLL_ACTIONS = 'userActions'
+const ACTIVE_TAG_TTL_SECONDS = parseInt(
+  process.env.JS_ACTIVE_TAG_TTL_SECONDS || '60',
+  10
+)
 const LoadConfig = require('./load-config')
 const Log = require('./simple-logger')
 const express = require('express')
@@ -144,6 +149,83 @@ let HintMongoIsConnected = true
 let db = null
 let clientMongo = null
 let pool = null
+
+async function ensureActiveTagRequestIndexes() {
+  if (!db) return
+
+  try {
+    await db
+      .collection(COLL_ACTIVE_TAG_REQUESTS)
+      .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_expiresAt' })
+    await db.collection(COLL_ACTIVE_TAG_REQUESTS).createIndex(
+      {
+        protocolSourceConnectionNumber: 1,
+        protocolSourceObjectAddress: 1,
+      },
+      {
+        unique: true,
+        name: 'uniq_conn_addr',
+      }
+    )
+  } catch (err) {
+    Log.log('Error ensuring activeTagRequests indexes: ' + err.message)
+  }
+}
+
+async function touchActiveTags(points) {
+  if (!db || !Array.isArray(points) || points.length === 0) return
+
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + ACTIVE_TAG_TTL_SECONDS * 1000)
+  const uniquePoints = new Map()
+
+  points.forEach((point) => {
+    if (
+      typeof point?.protocolSourceConnectionNumber === 'number' &&
+      typeof point?.protocolSourceObjectAddress === 'string' &&
+      point.protocolSourceObjectAddress !== ''
+    ) {
+      uniquePoints.set(
+        `${point.protocolSourceConnectionNumber}:${point.protocolSourceObjectAddress}`,
+        point
+      )
+    }
+  })
+
+  if (uniquePoints.size === 0) return
+
+  const operations = []
+  uniquePoints.forEach((point) => {
+    operations.push({
+      updateOne: {
+        filter: {
+          protocolSourceConnectionNumber: point.protocolSourceConnectionNumber,
+          protocolSourceObjectAddress: point.protocolSourceObjectAddress,
+        },
+        update: {
+          $set: {
+            protocolSourceConnectionNumber: point.protocolSourceConnectionNumber,
+            protocolSourceObjectAddress: point.protocolSourceObjectAddress,
+            pointKey: point._id,
+            tag: point.tag,
+            updatedAt: now,
+            expiresAt: expiresAt,
+            source: 'opc-read',
+          },
+        },
+        upsert: true,
+      },
+    })
+  })
+
+  try {
+    await db.collection(COLL_ACTIVE_TAG_REQUESTS).bulkWrite(operations, {
+      ordered: false,
+    })
+  } catch (err) {
+    Log.log('Error touching active tags: ' + err.message)
+  }
+}
 
 ;(async () => {
   if (AUTHENTICATION) {
@@ -1452,6 +1534,8 @@ let pool = null
                 projection: {
                   _id: 1,
                   tag: 1,
+                  protocolSourceConnectionNumber: 1,
+                  protocolSourceObjectAddress: 1,
                   value: 1,
                   valueString: 1,
                   invalid: 1,
@@ -1599,6 +1683,7 @@ let pool = null
               }
 
               let Results = []
+              let activeTouchPoints = []
               if ('NodesToRead' in req.body.Body) {
                 req.body.Body.NodesToRead.map((node) => {
                   let Result = {
@@ -1713,6 +1798,7 @@ let pool = null
                         Namespace: opc.NamespaceMongodb,
                       }
                       Result.SourceTimestamp = pointInfo.timeTag
+                      activeTouchPoints.push(pointInfo)
                       break
                     }
                   }
@@ -1809,10 +1895,13 @@ let pool = null
                   }
 
                   Results.push(Result)
+                  activeTouchPoints.push(node)
 
                   return node
                 })
               }
+
+              await touchActiveTags(activeTouchPoints)
 
               OpcResp.Body.Results = Results
               OpcResp.Body.ResponseHeader.ServiceResult = opc.StatusCode.Good
@@ -2468,6 +2557,7 @@ let pool = null
             clientMongo = client
             HintMongoIsConnected = true
             db = clientMongo.db(jsConfig.mongoDatabaseName)
+            await ensureActiveTagRequestIndexes()
           })
           .catch(function (err) {
             db = null
