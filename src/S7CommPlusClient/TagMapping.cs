@@ -32,6 +32,8 @@ partial class MainClass
 
             Log(srv.name + " - Browse returned " + varInfoList.Count + " variables.");
 
+            int enqueuedForCreation = 0;
+
             foreach (var varInfo in varInfoList)
             {
                 string accessSequence = varInfo.AccessSequence;
@@ -43,30 +45,41 @@ partial class MainClass
                 srv.AddressCache[accessSequence] = itemAddr;
                 srv.SoftdatatypeCache[accessSequence] = varInfo.Softdatatype;
 
-                // Enqueue value for auto-creation
-                var sv = new S7CPValue
+                // Only enqueue creation for addresses not already present in MongoDB.
+                if (!srv.InsertedAddresses.Contains(accessSequence))
                 {
-                    selfPublish = true,
-                    createCommandForSupervised = srv.commandsEnabled,
-                    address = accessSequence,
-                    asdu = asdu,
-                    isArray = false,
-                    value = 0,
-                    valueString = "",
-                    valueJson = "",
-                    cot = 20, // 20 = interrogation / auto-created
-                    serverTimestamp = DateTime.Now,
-                    quality = false,
-                    conn_number = srv.protocolConnectionNumber,
-                    conn_name = srv.name,
-                    display_name = name,
-                    path = ExtractPathFromName(name),
-                };
+                    var sv = new S7CPValue
+                    {
+                        selfPublish = true,
+                        createCommandForSupervised = srv.commandsEnabled,
+                        address = accessSequence,
+                        asdu = asdu,
+                        isArray = false,
+                        value = 0,
+                        valueString = "",
+                        valueJson = "",
+                        cot = 20, // 20 = interrogation / auto-created
+                        serverTimestamp = DateTime.Now,
+                        quality = false,
+                        conn_number = srv.protocolConnectionNumber,
+                        conn_name = srv.name,
+                        display_name = name,
+                        path = ExtractPathFromName(name),
+                    };
 
-                DataQueue.Enqueue(sv);
+                    DataQueue.Enqueue(sv);
+                    enqueuedForCreation++;
+                }
             }
 
-            Log(srv.name + " - Enqueued " + varInfoList.Count + " tags for creation.");
+            Log(
+                srv.name
+                + " - Enqueued "
+                + enqueuedForCreation
+                + " new tags for creation ("
+                + (varInfoList.Count - enqueuedForCreation)
+                + " already existed)."
+            );
         }
         catch (Exception e)
         {
