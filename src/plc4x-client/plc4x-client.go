@@ -327,6 +327,7 @@ func main() {
 	drivers.RegisterModbusAsciiDriver(driverManager)
 	drivers.RegisterOpcuaDriver(driverManager)
 	drivers.RegisterS7Driver(driverManager)
+	drivers.RegisterS7CommPlusDriver(driverManager)
 
 	cfg, instanceNumber, ll := readConfigFile()
 	logLevel := ll
@@ -427,6 +428,9 @@ func main() {
 			case "s7":
 				addrSep = ":"
 				addrParts = 3
+			case "s7commplus":
+				addrSep = ":"
+				addrParts = 2
 			case "simulated":
 			default:
 				log.Fatal(protocolConn.Name + ": Unsupported protocol - " + protocolId)
