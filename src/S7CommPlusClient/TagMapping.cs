@@ -137,10 +137,31 @@ partial class MainClass
         var addressList = new List<ItemAddress>();
         var addressKeys = new List<string>();
 
-        foreach (var kvp in srv.AddressCache)
+        if (srv.useActiveTagRequests)
         {
-            addressList.Add(kvp.Value);
-            addressKeys.Add(kvp.Key);
+            var activeAddresses = GetActiveAddressesForConnection(srv);
+            if (activeAddresses == null)
+                return;
+
+            foreach (var address in activeAddresses)
+            {
+                if (srv.AddressCache.TryGetValue(address, out var itemAddress))
+                {
+                    addressList.Add(itemAddress);
+                    addressKeys.Add(address);
+                }
+            }
+
+            if (addressList.Count == 0)
+                return;
+        }
+        else
+        {
+            foreach (var kvp in srv.AddressCache)
+            {
+                addressList.Add(kvp.Value);
+                addressKeys.Add(kvp.Key);
+            }
         }
 
         try

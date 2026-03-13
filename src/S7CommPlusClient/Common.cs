@@ -65,6 +65,10 @@ partial class MainClass
         public double timeoutMs { get; set; }
         [BsonDefaultValue(1.0)]
         public double giInterval { get; set; }
+        [BsonDefaultValue(false)]
+        public bool useActiveTagRequests { get; set; }
+        [BsonDefaultValue(5000)]
+        public int activeTagRequestLimit { get; set; }
         [BsonDefaultValue("")]
         public string username { get; set; }
         [BsonDefaultValue("")]
@@ -248,6 +252,64 @@ partial class MainClass
             };
         }
         return new MongoClient(settings);
+    }
+
+    static void EnsureActiveTagRequestIndexes(IMongoDatabase db)
+    {
+        try
+        {
+            var collection = db.GetCollection<BsonDocument>(ActiveTagRequestsCollectionName);
+            collection.Indexes.CreateOne(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys.Ascending("expiresAt"),
+                new CreateIndexOptions { ExpireAfter = TimeSpan.Zero, Name = "ttl_expiresAt" }));
+            collection.Indexes.CreateOne(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys
+                    .Ascending("protocolSourceConnectionNumber")
+                    .Ascending("protocolSourceObjectAddress"),
+                new CreateIndexOptions { Unique = true, Name = "uniq_conn_addr" }));
+        }
+        catch (Exception e)
+        {
+            Log("Failed to ensure active tag request indexes: " + e.Message, LogLevelDetailed);
+        }
+    }
+
+    static List<string> GetActiveAddressesForConnection(S7CP_connection srv)
+    {
+        if (MongoDatabase == null)
+            return null;
+
+        try
+        {
+            var collection = MongoDatabase.GetCollection<BsonDocument>(ActiveTagRequestsCollectionName);
+            var filter = Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("protocolSourceConnectionNumber", (double)srv.protocolConnectionNumber),
+                Builders<BsonDocument>.Filter.Gt("expiresAt", DateTime.UtcNow));
+            var projection = Builders<BsonDocument>.Projection
+                .Include("protocolSourceObjectAddress")
+                .Exclude("_id");
+            int requestLimit = Math.Max(1, srv.activeTagRequestLimit);
+
+            var docs = collection.Find(filter)
+                .Limit(requestLimit)
+                .Project<BsonDocument>(projection)
+                .ToList();
+
+            var addresses = new List<string>(docs.Count);
+            foreach (var doc in docs)
+            {
+                if (doc.TryGetValue("protocolSourceObjectAddress", out var value) && value.IsString)
+                    addresses.Add(value.AsString);
+            }
+
+            return addresses;
+        }
+        catch (Exception e)
+        {
+            Log(srv.name + " - Failed to query active tag requests: " + e.Message, LogLevelDetailed);
+            Log(e, LogLevelDetailed);
+            return null;
+        }
     }
 
     static byte[] GetBytesFromPEM(string pemString, string section)
