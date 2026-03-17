@@ -282,6 +282,12 @@ partial class MainClass
                     srv.isConnected = true;
                     Log(srv.name + " - Connected successfully.");
 
+                    // Start alarm subscription thread (separate connection to PLC)
+                    srv.alarmThreadStop = false;
+                    srv.alarmThread = new Thread(() => AlarmThread(srv));
+                    srv.alarmThread.Start();
+                    Log(srv.name + " - AlarmThread started.");
+
                     // Browse if autoCreateTags enabled
                     if (srv.autoCreateTags)
                     {
@@ -303,6 +309,14 @@ partial class MainClass
             {
                 Log(srv.name + " - Exception in connection thread: " + e.Message);
                 Log(e, LogLevelDetailed);
+                // Stop alarm thread before resetting connection
+                if (srv.alarmThread != null)
+                {
+                    srv.alarmThreadStop = true;
+                    srv.alarmThread.Join(3000);
+                    srv.alarmThread = null;
+                    Log(srv.name + " - AlarmThread stopped.");
+                }
                 srv.isConnected = false;
                 srv.connection = null;
                 Thread.Sleep(5000);
