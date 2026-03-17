@@ -91,7 +91,13 @@ partial class MainClass
         public Dictionary<string, S7CommPlusDriver.ItemAddress> AddressCache = new Dictionary<string, S7CommPlusDriver.ItemAddress>();
         [BsonIgnore]
         public Dictionary<string, uint> SoftdatatypeCache = new Dictionary<string, uint>();
+        [BsonIgnore]
+        public Thread alarmThread;
+        [BsonIgnore]
+        public volatile bool alarmThreadStop = false;
     }
+
+    public static string AlarmEventsCollectionName = "s7plusAlarmEvents";
 
     // Protocol driver instances configuration
     [BsonIgnoreExtraElements]
