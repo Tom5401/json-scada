@@ -31,7 +31,7 @@ const QUERYJSON_AP = '/queryJSON' // API Access point for special custom queries
 const COLL_REALTIME = 'realtimeData'
 const COLL_SOE = 'soeData'
 const COLL_COMMANDS = 'commandsQueue'
-const COLL_ACTIVE_TAG_REQUESTS = 'activeTagRequests'
+const COLL_ACTIVE_TAG_REQUESTS = 'activeTagRequests'  // collection to store active tag requests for opc read service, with TTL index to auto remove old entries
 const COLL_ACTIONS = 'userActions'
 const ACTIVE_TAG_TTL_SECONDS = parseInt(
   process.env.JS_ACTIVE_TAG_TTL_SECONDS || '60',
@@ -1798,7 +1798,7 @@ async function touchActiveTags(points) {
                         Namespace: opc.NamespaceMongodb,
                       }
                       Result.SourceTimestamp = pointInfo.timeTag
-                      activeTouchPoints.push(pointInfo)
+                      activeTouchPoints.push(pointInfo) // add to active touch points to update its timeTag later
                       break
                     }
                   }
@@ -1901,7 +1901,7 @@ async function touchActiveTags(points) {
                 })
               }
 
-              await touchActiveTags(activeTouchPoints)
+              await touchActiveTags(activeTouchPoints) // update timeTag of active touch points to avoid them to be archived by the tag cleanup process
 
               OpcResp.Body.Results = Results
               OpcResp.Body.ResponseHeader.ServiceResult = opc.StatusCode.Good
