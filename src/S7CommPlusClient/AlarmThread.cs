@@ -104,7 +104,6 @@ partial class MainClass
                 // Build and insert alarm event document
                 try
                 {
-                    Log(srv.name + " - AlarmThread TRACE: " + dai.AsCgs.ToString() + " | " + dai.HmiInfo.ToString(), LogLevelDetailed);
                     var doc = BuildAlarmDocument(dai, srv);
                     alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
                     Log(srv.name + " - AlarmThread: alarm event written - cpuAlarmId=" + dai.CpuAlarmId
@@ -189,7 +188,8 @@ partial class MainClass
             { "additionalTexts",   additionalTexts },
             { "associatedValues",  associatedValues },
             { "timestamp",         new BsonDateTime(dai.AsCgs.Timestamp) },
-            { "ackState",          dai.AsCgs.AckTimestamp != DateTime.MinValue },
+            // AckTimestamp is DateTime.UnixEpoch when unacknowledged (protocol sends 0) — confirmed via PLCSIM trace
+            { "ackState",          dai.AsCgs.AckTimestamp != DateTime.UnixEpoch },
             { "connectionId",      srv.protocolConnectionNumber },
             { "createdAt",         new BsonDateTime(DateTime.UtcNow) },
             { "priority",          (int)dai.HmiInfo.Priority },
