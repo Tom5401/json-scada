@@ -105,8 +105,8 @@ partial class MainClass
                     var doc = BuildAlarmDocument(dai, srv);
                     alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
                     Log(srv.name + " - AlarmThread: alarm event written - cpuAlarmId=" + dai.CpuAlarmId
-                        + " state=" + (dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming ? "Coming" : "Going"),
-                        LogLevelDetailed);
+                        + " state=" + (dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming ? "Coming" : "Going")
+                        + " text=" + (dai.AlarmTexts?.AlarmText ?? ""));
                 }
                 catch (Exception ex)
                 {
@@ -146,19 +146,35 @@ partial class MainClass
         string alarmState = dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming
             ? "Coming" : "Going";
 
+        var texts = dai.AlarmTexts;
+        var additionalTexts = new BsonArray
+        {
+            texts?.AdditionalText1 ?? "",
+            texts?.AdditionalText2 ?? "",
+            texts?.AdditionalText3 ?? "",
+            texts?.AdditionalText4 ?? "",
+            texts?.AdditionalText5 ?? "",
+            texts?.AdditionalText6 ?? "",
+            texts?.AdditionalText7 ?? "",
+            texts?.AdditionalText8 ?? "",
+            texts?.AdditionalText9 ?? "",
+        };
+
         return new BsonDocument
         {
-            { "cpuAlarmId",    (long)dai.CpuAlarmId },
-            { "alarmState",    alarmState },
-            { "alarmText",     dai.AlarmTexts?.AlarmText ?? "" },
-            { "timestamp",     new BsonDateTime(dai.AsCgs.Timestamp) },
-            { "ackState",      dai.AsCgs.AckTimestamp != DateTime.MinValue },
-            { "connectionId",  srv.protocolConnectionNumber },
-            { "createdAt",     new BsonDateTime(DateTime.UtcNow) },
-            { "priority",      (int)dai.HmiInfo.Priority },
-            { "alarmClass",    (int)dai.HmiInfo.AlarmClass },
-            { "groupId",       (int)dai.HmiInfo.GroupId },
-            { "allStatesInfo", (int)dai.AllStatesInfo }
+            { "cpuAlarmId",       (long)dai.CpuAlarmId },
+            { "alarmState",       alarmState },
+            { "alarmText",        texts?.AlarmText ?? "" },
+            { "infoText",         texts?.Infotext ?? "" },
+            { "additionalTexts",  additionalTexts },
+            { "timestamp",        new BsonDateTime(dai.AsCgs.Timestamp) },
+            { "ackState",         dai.AsCgs.AckTimestamp != DateTime.MinValue },
+            { "connectionId",     srv.protocolConnectionNumber },
+            { "createdAt",        new BsonDateTime(DateTime.UtcNow) },
+            { "priority",         (int)dai.HmiInfo.Priority },
+            { "alarmClass",       (int)dai.HmiInfo.AlarmClass },
+            { "groupId",          (int)dai.HmiInfo.GroupId },
+            { "allStatesInfo",    (int)dai.AllStatesInfo }
         };
     }
 }
