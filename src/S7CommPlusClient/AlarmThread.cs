@@ -104,6 +104,7 @@ partial class MainClass
                 // Build and insert alarm event document
                 try
                 {
+                    Log(srv.name + " - AlarmThread TRACE: " + dai.AsCgs.ToString() + " | " + dai.HmiInfo.ToString(), LogLevelDetailed);
                     var doc = BuildAlarmDocument(dai, srv);
                     alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
                     Log(srv.name + " - AlarmThread: alarm event written - cpuAlarmId=" + dai.CpuAlarmId
