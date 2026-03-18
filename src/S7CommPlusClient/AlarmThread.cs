@@ -8,6 +8,8 @@
  */
 
 using System;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -147,34 +149,97 @@ partial class MainClass
             ? "Coming" : "Going";
 
         var texts = dai.AlarmTexts;
+        var av    = dai.AsCgs.AssociatedValues;
+
         var additionalTexts = new BsonArray
         {
-            texts?.AdditionalText1 ?? "",
-            texts?.AdditionalText2 ?? "",
-            texts?.AdditionalText3 ?? "",
-            texts?.AdditionalText4 ?? "",
-            texts?.AdditionalText5 ?? "",
-            texts?.AdditionalText6 ?? "",
-            texts?.AdditionalText7 ?? "",
-            texts?.AdditionalText8 ?? "",
-            texts?.AdditionalText9 ?? "",
+            ResolveAlarmText(texts?.AdditionalText1 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText2 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText3 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText4 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText5 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText6 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText7 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText8 ?? "", av),
+            ResolveAlarmText(texts?.AdditionalText9 ?? "", av),
+        };
+
+        // Raw typed SD values — SD_1..SD_10 as index 0..9
+        var associatedValues = new BsonArray
+        {
+            SdValueToBson(av?.SD_1),
+            SdValueToBson(av?.SD_2),
+            SdValueToBson(av?.SD_3),
+            SdValueToBson(av?.SD_4),
+            SdValueToBson(av?.SD_5),
+            SdValueToBson(av?.SD_6),
+            SdValueToBson(av?.SD_7),
+            SdValueToBson(av?.SD_8),
+            SdValueToBson(av?.SD_9),
+            SdValueToBson(av?.SD_10),
         };
 
         return new BsonDocument
         {
-            { "cpuAlarmId",       (long)dai.CpuAlarmId },
-            { "alarmState",       alarmState },
-            { "alarmText",        texts?.AlarmText ?? "" },
-            { "infoText",         texts?.Infotext ?? "" },
-            { "additionalTexts",  additionalTexts },
-            { "timestamp",        new BsonDateTime(dai.AsCgs.Timestamp) },
-            { "ackState",         dai.AsCgs.AckTimestamp != DateTime.MinValue },
-            { "connectionId",     srv.protocolConnectionNumber },
-            { "createdAt",        new BsonDateTime(DateTime.UtcNow) },
-            { "priority",         (int)dai.HmiInfo.Priority },
-            { "alarmClass",       (int)dai.HmiInfo.AlarmClass },
-            { "groupId",          (int)dai.HmiInfo.GroupId },
-            { "allStatesInfo",    (int)dai.AllStatesInfo }
+            { "cpuAlarmId",        (long)dai.CpuAlarmId },
+            { "alarmState",        alarmState },
+            { "alarmText",         texts?.AlarmText ?? "" },
+            { "infoText",          texts?.Infotext ?? "" },
+            { "additionalTexts",   additionalTexts },
+            { "associatedValues",  associatedValues },
+            { "timestamp",         new BsonDateTime(dai.AsCgs.Timestamp) },
+            { "ackState",          dai.AsCgs.AckTimestamp != DateTime.MinValue },
+            { "connectionId",      srv.protocolConnectionNumber },
+            { "createdAt",         new BsonDateTime(DateTime.UtcNow) },
+            { "priority",          (int)dai.HmiInfo.Priority },
+            { "alarmClass",        (int)dai.HmiInfo.AlarmClass },
+            { "groupId",           (int)dai.HmiInfo.GroupId },
+            { "allStatesInfo",     (int)dai.AllStatesInfo }
         };
+    }
+
+    // Resolve TIA Portal alarm text placeholders: @N%f@, @N%d@, @N%s@, etc.
+    // N is 1-based SD index; format specifier is ignored — AssociatedValue.ToString() is used.
+    static readonly Regex AlarmTextPlaceholder = new Regex(@"@(\d+)%[a-zA-Z]@", RegexOptions.Compiled);
+
+    static string ResolveAlarmText(string template, AlarmsAssociatedValues av)
+    {
+        if (string.IsNullOrEmpty(template) || av == null || !template.Contains('@'))
+            return template;
+
+        return AlarmTextPlaceholder.Replace(template, m =>
+        {
+            int n = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            AssociatedValue sd = n switch
+            {
+                1  => av.SD_1,  2  => av.SD_2,  3  => av.SD_3,  4  => av.SD_4,
+                5  => av.SD_5,  6  => av.SD_6,  7  => av.SD_7,  8  => av.SD_8,
+                9  => av.SD_9,  10 => av.SD_10,
+                _  => null
+            };
+            if (sd == null) return m.Value; // leave placeholder if SD is absent
+            // Use invariant culture for real types to match TIA Portal's decimal format
+            uint ti = sd.TypeInfo;
+            if (ti == Ids.TI_REAL || ti == Ids.TI_LREAL)
+                return Convert.ToDouble(sd.ToString(), CultureInfo.CurrentCulture)
+                              .ToString("G", CultureInfo.InvariantCulture);
+            return sd.ToString();
+        });
+    }
+
+    // Convert AssociatedValue to the most appropriate BsonValue type
+    static BsonValue SdValueToBson(AssociatedValue sd)
+    {
+        if (sd == null) return BsonNull.Value;
+        uint ti = sd.TypeInfo;
+        if (ti == Ids.TI_BOOL)
+            return new BsonBoolean(sd.ToString() == "True");
+        if (ti == Ids.TI_REAL || ti == Ids.TI_LREAL)
+            return new BsonDouble(Convert.ToDouble(sd.ToString(), CultureInfo.CurrentCulture));
+        if (ti == Ids.TI_BYTE  || ti == Ids.TI_WORD  || ti == Ids.TI_DWORD ||
+            ti == Ids.TI_INT   || ti == Ids.TI_DINT  || ti == Ids.TI_USINT ||
+            ti == Ids.TI_UINT  || ti == Ids.TI_UDINT || ti == Ids.TI_SINT)
+            return new BsonInt64(Convert.ToInt64(sd.ToString(), CultureInfo.InvariantCulture));
+        return new BsonString(sd.ToString());
     }
 }
