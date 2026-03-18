@@ -8,6 +8,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -143,6 +144,14 @@ partial class MainClass
         }
     }
 
+    // TIA Portal standard alarm class IDs mapped to human-readable names.
+    // IDs confirmed via PLCSIM trace (see 02-01-SUMMARY.md).
+    // For IDs not in this map, BuildAlarmDocument() returns "Unknown (N)".
+    private static readonly Dictionary<ushort, string> AlarmClassNames = new Dictionary<ushort, string>
+    {
+        { 33, "Acknowledgment required" },
+    };
+
     static BsonDocument BuildAlarmDocument(AlarmsDai dai, S7CP_connection srv)
     {
         string alarmState = dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming
@@ -194,6 +203,7 @@ partial class MainClass
             { "createdAt",         new BsonDateTime(DateTime.UtcNow) },
             { "priority",          (int)dai.HmiInfo.Priority },
             { "alarmClass",        (int)dai.HmiInfo.AlarmClass },
+            { "alarmClassName",    AlarmClassNames.TryGetValue(dai.HmiInfo.AlarmClass, out var cn) ? cn : $"Unknown ({dai.HmiInfo.AlarmClass})" },
             { "groupId",           (int)dai.HmiInfo.GroupId },
             { "allStatesInfo",     (int)dai.AllStatesInfo }
         };
