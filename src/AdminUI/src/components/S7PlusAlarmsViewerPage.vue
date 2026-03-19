@@ -148,7 +148,6 @@ const confirmState = ref({
   item: null,
   count: 0
 })
-
 const ackAlarm = async (cpuAlarmId, connectionNumber) => {
   pendingAcks.value = new Set([...pendingAcks.value, cpuAlarmId])
   try {
