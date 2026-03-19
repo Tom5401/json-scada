@@ -410,6 +410,44 @@ async function touchActiveTags(points) {
       }
     )
 
+    // S7Plus alarm acknowledge endpoint
+    app.post(
+      OPCAPI_AP + 'auth/ackS7PlusAlarm',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+          const { cpuAlarmId, connectionNumber } = req.body
+          if (!cpuAlarmId || connectionNumber === undefined || connectionNumber === null) {
+            return res.status(400).send({ error: 'Missing cpuAlarmId or connectionNumber' })
+          }
+          const originatorUserName = authJwt.checkToken(req)?.username || 'unknown'
+          const result = await db.collection(COLL_COMMANDS).insertOne({
+            protocolSourceConnectionNumber: new Double(connectionNumber),
+            protocolSourceObjectAddress: cpuAlarmId.toString(),
+            protocolSourceASDU: 's7plus-alarm-ack',
+            protocolSourceCommandDuration: new Double(0),
+            protocolSourceCommandUseSBO: false,
+            pointKey: new Double(0),
+            tag: '',
+            timeTag: new Date(),
+            value: new Double(0),
+            valueString: '',
+            originatorUserName,
+            originatorIpAddress:
+              req.headers['x-real-ip'] ||
+              req.headers['x-forwarded-for'] ||
+              req.socket.remoteAddress,
+          })
+          if (!result.acknowledged) return res.status(500).send({ error: 'Insert failed' })
+          res.status(200).send({ ok: true })
+        } catch (err) {
+          Log.log(err)
+          res.status(200).send({ error: err.message })
+        }
+      }
+    )
+
     require('./app/routes/user.routes')(
       app,
       OPCAPI_AP,
