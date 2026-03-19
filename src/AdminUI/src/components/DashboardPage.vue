@@ -53,6 +53,7 @@
     Database,
     PenTool,
     Code,
+    AlertTriangle,
   } from 'lucide-vue-next'
 
   // Lifecycle hooks
@@ -82,6 +83,12 @@
       route: '/alarms-viewer',
       page: '/tabular.html?SELMODULO=ALARMS_VIEWER',
       target: '_blank',
+    },
+    {
+      titleKey: 'dashboard.s7plusAlarms',
+      icon: AlertTriangle,
+      color: 'primary',
+      route: '/s7plus-alarms',
     },
     {
       titleKey: 'dashboard.tabularViewer',

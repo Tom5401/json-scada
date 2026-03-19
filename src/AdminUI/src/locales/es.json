@@ -35,7 +35,8 @@
     "metabase": "Metabase",
     "customDevelopments": "Desarrollos personalizados",
     "open": "Abierto",
-    "svgedit": "Editor SVG"
+    "svgedit": "Editor SVG",
+    "s7plusAlarms": "S7Plus Alarms"
   },
   "login": {
     "title": "Acceso",

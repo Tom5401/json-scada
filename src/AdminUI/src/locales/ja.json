@@ -35,7 +35,8 @@
     "metabase": "メタベース",
     "customDevelopments": "カスタム開発",
     "open": "開ける",
-    "svgedit": "SVGエディター"
+    "svgedit": "SVGエディター",
+    "s7plusAlarms": "S7Plus Alarms"
   },
   "login": {
     "title": "ログイン",
