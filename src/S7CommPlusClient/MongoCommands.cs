@@ -93,6 +93,39 @@ partial class MainClass
                             double cmdValue = change.FullDocument.value.ToDouble();
                             string cmdValueString = change.FullDocument.valueString.ToString();
 
+                            // Alarm acknowledgement command — bypass tag write path
+                            if (asdu == "s7plus-alarm-ack")
+                            {
+                                Log("MongoDB CMD CS - " + srv.name + " - Alarm ack for cpuAlarmId: " + address);
+                                bool ackSuccess = false;
+                                string ackResultDescription = "";
+                                try
+                                {
+                                    ulong cpuAlarmId = ulong.Parse(address);
+                                    int ackRes = srv.connection.SendAlarmAck(cpuAlarmId);
+                                    ackSuccess = (ackRes == 0);
+                                    ackResultDescription = ackSuccess ? "OK" : "SendAlarmAck error code: " + ackRes;
+                                }
+                                catch (Exception ex)
+                                {
+                                    ackResultDescription = "Alarm ack exception: " + ex.Message;
+                                    Log("MongoDB CMD CS - " + srv.name + " - " + ackResultDescription);
+                                }
+
+                                // Update commandsQueue as delivered (same pattern as tag write)
+                                filter = new BsonDocument(new BsonDocument("_id", change.FullDocument.id));
+                                update = new BsonDocument{ {"$set",
+                                    new BsonDocument{
+                                        { "delivered", true },
+                                        { "ack", ackSuccess },
+                                        { "ackTimeTag", new BsonDateTime(DateTime.Now) },
+                                        { "resultDescription", ackResultDescription }
+                                    }
+                                } };
+                                await collection.UpdateOneAsync(filter, update);
+                                break;
+                            }
+
                             // Resolve the ItemAddress for this tag
                             if (!srv.AddressCache.TryGetValue(address, out ItemAddress itemAddr))
                             {
