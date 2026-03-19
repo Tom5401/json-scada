@@ -346,6 +346,28 @@ async function touchActiveTags(points) {
 
   if (AUTHENTICATION) {
     require('./app/routes/auth.routes')(app, OPCAPI_AP)
+
+    // S7Plus alarm events list endpoint (uses native db handle, not Mongoose)
+    app.use(
+      OPCAPI_AP + 'auth/listS7PlusAlarms',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+          const docs = await db
+            .collection('s7plusAlarmEvents')
+            .find({}, { projection: { _id: 0 } })
+            .sort({ createdAt: -1 })
+            .limit(200)
+            .toArray()
+          res.status(200).send(docs)
+        } catch (err) {
+          Log.log(err)
+          res.status(200).send({ error: err.message })
+        }
+      }
+    )
+
     require('./app/routes/user.routes')(
       app,
       OPCAPI_AP,
