@@ -37,7 +37,22 @@
 
       <template #[`item.ackState`]="{ item }">
         <v-icon v-if="item.ackState" color="green">mdi-check</v-icon>
-        <v-icon v-else color="red">mdi-close</v-icon>
+        <template v-else>
+          <v-progress-circular
+            v-if="pendingAcks.has(item.cpuAlarmId)"
+            indeterminate
+            size="16"
+            width="2"
+          />
+          <v-btn
+            v-else
+            size="x-small"
+            variant="tonal"
+            @click="ackAlarm(item.cpuAlarmId, item.connectionId)"
+          >
+            Ack
+          </v-btn>
+        </template>
       </template>
 
       <template #[`item.date`]="{ item }">
@@ -69,7 +84,31 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 const alarms = ref([])
 const statusFilter = ref('All')
 const alarmClassFilter = ref('All')
+const pendingAcks = ref(new Set())
 let refreshTimer = null
+
+const ackAlarm = async (cpuAlarmId, connectionNumber) => {
+  pendingAcks.value = new Set([...pendingAcks.value, cpuAlarmId])
+  try {
+    const response = await fetch('/Invoke/auth/ackS7PlusAlarm', {
+      method: 'post',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ cpuAlarmId, connectionNumber }),
+    })
+    const json = await response.json()
+    if (json.error) {
+      console.warn('Ack failed:', json.error)
+      pendingAcks.value = new Set([...pendingAcks.value].filter(id => id !== cpuAlarmId))
+    }
+    // On success: pending state stays until next poll confirms ackState: true
+  } catch (err) {
+    console.warn('Ack failed:', err)
+    pendingAcks.value = new Set([...pendingAcks.value].filter(id => id !== cpuAlarmId))
+  }
+}
 
 const headers = [
   { title: 'Source', key: 'connectionId', sortable: true },
@@ -121,6 +160,19 @@ const fetchAlarms = async () => {
     const json = await response.json()
     if (Array.isArray(json)) {
       alarms.value = json
+      // Resolve pending ack states: remove IDs that are now acknowledged OR still false (allow retry)
+      if (pendingAcks.value.size > 0) {
+        const stillPending = new Set()
+        for (const id of pendingAcks.value) {
+          const alarm = json.find(a => a.cpuAlarmId === id)
+          if (alarm && !alarm.ackState) {
+            // PLC has not yet acknowledged — keep pending for one more cycle only
+            // Do NOT keep pending: remove to allow retry (per CONTEXT.md decision)
+          }
+          // If alarm.ackState === true or alarm not found: confirmed, remove from pending
+        }
+        pendingAcks.value = stillPending
+      }
     }
   } catch (err) {
     console.warn('Failed to fetch S7Plus alarms:', err)
