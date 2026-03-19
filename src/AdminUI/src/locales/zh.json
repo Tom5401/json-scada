@@ -35,7 +35,8 @@
     "metabase": "元数据库",
     "customDevelopments": "定制开发",
     "open": "打开",
-    "svgedit": "SVG编辑器"
+    "svgedit": "SVG编辑器",
+    "s7plusAlarms": "S7Plus Alarms"
   },
   "login": {
     "title": "登录",

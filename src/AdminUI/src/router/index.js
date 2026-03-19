@@ -12,6 +12,7 @@ import AlarmsViewerPage from '../components/AlarmsViewerPage.vue'
 import LogViewerPage from '../components/LogViewerPage.vue' 
 import CustomDevelopmentsPage from '../components/CustomDevelopmentsPage.vue'
 import SVGEditPage from '../components/SVGEditPage.vue'
+import S7PlusAlarmsViewerPage from '../components/S7PlusAlarmsViewerPage.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -40,6 +41,7 @@ const routes = [
   { path: '/metabase', component: MetabasePage },
   { path: '/custom-developments', component: CustomDevelopmentsPage },
   { path: '/svg-edit', component: SVGEditPage },
+  { path: '/s7plus-alarms', component: S7PlusAlarmsViewerPage },
 ]
 
 const router = createRouter({

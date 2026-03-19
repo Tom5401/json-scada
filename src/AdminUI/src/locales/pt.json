@@ -35,7 +35,8 @@
     "metabase": "Metabase",
     "customDevelopments": "Desenvolvimentos personalizados",
     "open": "Abrir",
-    "svgedit": "Editor SVG"
+    "svgedit": "Editor SVG",
+    "s7plusAlarms": "S7Plus Alarms"
   },
   "login": {
     "title": "Entrar",

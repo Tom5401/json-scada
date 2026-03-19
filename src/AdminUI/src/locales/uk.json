@@ -35,7 +35,8 @@
     "metabase": "Метабаза",
     "customDevelopments": "Розробки на замовлення",
     "open": "ВІДЧИНЕНО",
-    "svgedit": "SVG-редактор"
+    "svgedit": "SVG-редактор",
+    "s7plusAlarms": "S7Plus Alarms"
   },
   "login": {
     "title": "Логін",
