@@ -55,6 +55,15 @@ partial class MainClass
             // Receive loop
             while (!srv.alarmThreadStop)
             {
+                // Drain pending ack requests — send each via alarmConn (dedicated connection,
+                // no contention with the polling loop that uses srv.connection).
+                while (srv.PendingAcks.TryDequeue(out var pending))
+                {
+                    Log(srv.name + " - AlarmThread: sending alarm ack for cpuAlarmId: " + pending.CpuAlarmId);
+                    int ackRes = alarmConn.SendAlarmAck(pending.CpuAlarmId);
+                    pending.Completion.SetResult(ackRes == 0);
+                }
+
                 Notification noti;
                 try
                 {
@@ -63,7 +72,7 @@ partial class MainClass
                 catch (NotImplementedException ex)
                 {
                     // BUG-03: unknown PDU type in Notification.DeserializeFromPdu — catch, log, continue
-                    Log(srv.name + " - AlarmThread: unknown PDU type, skipping. " + ex.Message, LogLevelDetailed);
+                    Log(srv.name + " - AlarmThread: unknown PDU type, skipping. " + ex.Message);
                     continue;
                 }
 
@@ -81,6 +90,15 @@ partial class MainClass
 
                 if (noti.P2Objects == null || noti.P2Objects.Count == 0)
                 {
+                    continue;
+                }
+
+                // AckJob completion notifications (ClassId=3636) are not DAI alarm objects —
+                // skip them rather than letting FromNotificationObject throw on missing attributes.
+                const uint AckJobClassRid = 3636;
+                if (noti.P2Objects[0].ClassId == AckJobClassRid)
+                {
+                    Log(srv.name + " - AlarmThread: AckJob completion notification received, skipping.", LogLevelDebug);
                     continue;
                 }
 

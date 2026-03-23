@@ -11,11 +11,13 @@
  */
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Attributes;
@@ -95,6 +97,17 @@ partial class MainClass
         public Thread alarmThread;
         [BsonIgnore]
         public volatile bool alarmThreadStop = false;
+        [BsonIgnore]
+        public ConcurrentQueue<PendingAlarmAck> PendingAcks = new ConcurrentQueue<PendingAlarmAck>();
+    }
+
+    /// <summary>
+    /// Queued alarm acknowledgement request. MongoCommands enqueues; AlarmThread sends via alarmConn.
+    /// </summary>
+    public class PendingAlarmAck
+    {
+        public ulong CpuAlarmId;
+        public TaskCompletionSource<bool> Completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     public static string AlarmEventsCollectionName = "s7plusAlarmEvents";
@@ -147,25 +160,25 @@ partial class MainClass
     public class rtCommand
     {
         public BsonObjectId id { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceConnectionNumber { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceCommonAddress { get; set; }
+        [BsonDefaultValue(0.0)]
+        public double protocolSourceConnectionNumber { get; set; }
+        [BsonDefaultValue(0.0)]
+        public double protocolSourceCommonAddress { get; set; }
         [BsonDefaultValue("")]
         public BsonString protocolSourceObjectAddress { get; set; }
         [BsonDefaultValue("")]
         public BsonString protocolSourceASDU { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceCommandDuration { get; set; }
+        [BsonDefaultValue(0.0)]
+        public double protocolSourceCommandDuration { get; set; }
         [BsonDefaultValue(false)]
         public BsonBoolean protocolSourceCommandUseSBO { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble pointKey { get; set; }
+        [BsonDefaultValue(0.0)]
+        public double pointKey { get; set; }
         [BsonDefaultValue("")]
         public BsonString tag { get; set; }
         public BsonDateTime timeTag { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble value { get; set; }
+        [BsonDefaultValue(0.0)]
+        public double value { get; set; }
         [BsonDefaultValue("")]
         public BsonString valueString { get; set; }
         [BsonDefaultValue("")]

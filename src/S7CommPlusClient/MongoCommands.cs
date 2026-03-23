@@ -90,7 +90,7 @@ partial class MainClass
 
                             string address = change.FullDocument.protocolSourceObjectAddress.ToString();
                             string asdu = change.FullDocument.protocolSourceASDU.ToString();
-                            double cmdValue = change.FullDocument.value.ToDouble();
+                            double cmdValue = change.FullDocument.value;
                             string cmdValueString = change.FullDocument.valueString.ToString();
 
                             // Alarm acknowledgement command — bypass tag write path
@@ -102,14 +102,33 @@ partial class MainClass
                                 try
                                 {
                                     ulong cpuAlarmId = ulong.Parse(address);
-                                    int ackRes = srv.connection.SendAlarmAck(cpuAlarmId);
-                                    ackSuccess = (ackRes == 0);
-                                    ackResultDescription = ackSuccess ? "OK" : "SendAlarmAck error code: " + ackRes;
+
+                                    // Queue the ack to AlarmThread, which sends it via alarmConn —
+                                    // the dedicated alarm subscription connection has no polling loop
+                                    // contention, and the AckJob completion notification arrives there naturally.
+                                    var pending = new PendingAlarmAck { CpuAlarmId = cpuAlarmId };
+                                    srv.PendingAcks.Enqueue(pending);
+                                    ackSuccess = await pending.Completion.Task;
+                                    ackResultDescription = ackSuccess ? "OK" : "SendAlarmAck failed";
                                 }
                                 catch (Exception ex)
                                 {
                                     ackResultDescription = "Alarm ack exception: " + ex.Message;
                                     Log("MongoDB CMD CS - " + srv.name + " - " + ackResultDescription);
+                                }
+
+                                // If ack reached the PLC, update ackState in s7plusAlarmEvents.
+                                // The alarm subscription connection receives an unparseable ack
+                                // confirmation PDU (driver limitation), so we update MongoDB directly.
+                                if (ackSuccess)
+                                {
+                                    var alarmCollection = DB.GetCollection<BsonDocument>(AlarmEventsCollectionName);
+                                    var alarmFilter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", address);
+                                    var alarmUpdate = Builders<BsonDocument>.Update
+                                        .Set("ackState", true)
+                                        .Set("ackTimestamp", new BsonDateTime(DateTime.UtcNow));
+                                    await alarmCollection.UpdateManyAsync(alarmFilter, alarmUpdate);
+                                    Log("MongoDB CMD CS - " + srv.name + " - ackState updated in s7plusAlarmEvents for cpuAlarmId: " + address);
                                 }
 
                                 // Update commandsQueue as delivered (same pattern as tag write)
