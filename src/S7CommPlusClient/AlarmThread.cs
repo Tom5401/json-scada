@@ -193,7 +193,7 @@ partial class MainClass
 
         return new BsonDocument
         {
-            { "cpuAlarmId",        (long)dai.CpuAlarmId },
+            { "cpuAlarmId",        dai.CpuAlarmId.ToString() },
             { "alarmState",        alarmState },
             { "alarmText",         texts?.AlarmText ?? "" },
             { "infoText",          texts?.Infotext ?? "" },
