@@ -282,6 +282,25 @@ partial class MainClass
                     srv.isConnected = true;
                     Log(srv.name + " - Connected successfully.");
 
+                    // Build RelationId-to-name map from PLC datablock browse
+                    {
+                        List<S7CommPlusDriver.S7CommPlusConnection.DatablockInfo> dbInfoList;
+                        int browseRes = srv.connection.GetListOfDatablocks(out dbInfoList);
+                        if (browseRes != 0)
+                        {
+                            Log(srv.name + " - GetListOfDatablocks failed (error: " + browseRes + "); originDbName will be empty.", LogLevelBasic);
+                            srv.RelationIdNameMap = new Dictionary<uint, string>();
+                        }
+                        else
+                        {
+                            var map = new Dictionary<uint, string>(dbInfoList.Count);
+                            foreach (var db in dbInfoList)
+                                map[db.db_block_relid] = db.db_name;
+                            srv.RelationIdNameMap = map;
+                            Log(srv.name + " - RelationIdNameMap built: " + map.Count + " datablocks.", LogLevelDetailed);
+                        }
+                    }
+
                     // Start alarm subscription thread (separate connection to PLC)
                     srv.alarmThreadStop = false;
                     srv.alarmThread = new Thread(() => AlarmThread(srv));
