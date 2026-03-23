@@ -102,34 +102,36 @@ partial class MainClass
                                 try
                                 {
                                     ulong cpuAlarmId = ulong.Parse(address);
-                                    int ackRes = srv.connection.SendAlarmAck(cpuAlarmId);
-                                    ackOk = (ackRes == 0);
-                                    ackResult = ackOk ? "OK" : "SendAlarmAck error: " + ackRes;
 
-                                    // Update the alarm event document in s7plusAlarmEvents
-                                    if (ackOk && MongoDatabase != null)
-                                    {
-                                        try
-                                        {
-                                            var alarmColl = MongoDatabase.GetCollection<BsonDocument>(AlarmEventsCollectionName);
-                                            var ackFilter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", address);
-                                            var ackUpdate = Builders<BsonDocument>.Update
-                                                .Set("ackState", true)
-                                                .Set("ackTimestamp", new BsonDateTime(DateTime.UtcNow));
-                                            var ackUpdateResult = await alarmColl.UpdateManyAsync(ackFilter, ackUpdate);
-                                            Log("MongoDB CMD CS - " + srv.name + " - Updated " + ackUpdateResult.ModifiedCount + " alarm event(s) for cpuAlarmId " + address);
-                                        }
-                                        catch (Exception dbEx)
-                                        {
-                                            Log("MongoDB CMD CS - " + srv.name + " - Failed to update alarm events: " + dbEx.Message);
-                                        }
-                                    }
+                                    // Queue the ack to AlarmThread, which sends it via alarmConn —
+                                    // the dedicated alarm subscription connection has no polling loop
+                                    // contention, and the AckJob completion notification arrives there naturally.
+                                    var pending = new PendingAlarmAck { CpuAlarmId = cpuAlarmId };
+                                    srv.PendingAcks.Enqueue(pending);
+                                    ackOk = await pending.Completion.Task;
+                                    ackResult = ackOk ? "OK" : "SendAlarmAck failed";
                                 }
                                 catch (Exception ex)
                                 {
                                     ackResult = "Alarm ACK failed: " + ex.Message;
                                 }
+
+                                // If ack reached the PLC, update ackState in s7plusAlarmEvents.
+                                // The alarm subscription connection receives an unparseable ack
+                                // confirmation PDU (driver limitation), so we update MongoDB directly.
+                                if (ackOk)
+                                {
+                                    var alarmCollection = DB.GetCollection<BsonDocument>(AlarmEventsCollectionName);
+                                    var alarmFilter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", address);
+                                    var alarmUpdate = Builders<BsonDocument>.Update
+                                        .Set("ackState", true)
+                                        .Set("ackTimestamp", new BsonDateTime(DateTime.UtcNow));
+                                    await alarmCollection.UpdateManyAsync(alarmFilter, alarmUpdate);
+                                    Log("MongoDB CMD CS - " + srv.name + " - ackState updated in s7plusAlarmEvents for cpuAlarmId: " + address);
+                                }
                                 Log("MongoDB CMD CS - " + srv.name + " - Alarm ACK result: " + ackResult);
+
+                                // Update commandsQueue as delivered (same pattern as tag write)
                                 filter = new BsonDocument(new BsonDocument("_id", change.FullDocument.id));
                                 update = new BsonDocument{ {"$set",
                                     new BsonDocument{
