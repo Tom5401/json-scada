@@ -92,6 +92,8 @@ partial class MainClass
         [BsonIgnore]
         public Dictionary<string, uint> SoftdatatypeCache = new Dictionary<string, uint>();
         [BsonIgnore]
+        public Dictionary<uint, string> RelationIdNameMap = new Dictionary<uint, string>();
+        [BsonIgnore]
         public Thread alarmThread;
         [BsonIgnore]
         public volatile bool alarmThreadStop = false;
