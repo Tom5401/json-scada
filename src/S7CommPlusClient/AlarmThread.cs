@@ -50,6 +50,32 @@ partial class MainClass
                 .GetCollection<BsonDocument>(AlarmEventsCollectionName)
                 .WithWriteConcern(WriteConcern.W1);
 
+            // After AlarmSubscriptionCreate() succeeds, poll for already-active alarms
+            Log(srv.name + " - AlarmThread: polling for already-active alarms...");
+            List<AlarmsDai> activeAlarms;
+            int pollRes = alarmConn.GetActiveAlarms(out activeAlarms, 1033); // LCID 1033 = English
+            if (pollRes == 0 && activeAlarms.Count > 0)
+            {
+                Log(srv.name + " - AlarmThread: found " + activeAlarms.Count + " active alarm(s).");
+                foreach (var dai in activeAlarms)
+                {
+                    try
+                    {
+                        var doc = BuildAlarmDocument(dai, srv);
+                        alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
+                        Log(srv.name + " - AlarmThread: pre-existing alarm written - cpuAlarmId=" + dai.CpuAlarmId);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log(srv.name + " - AlarmThread: MongoDB write error for active alarm: " + ex.Message);
+                    }
+                }
+            }
+            else if (pollRes != 0)
+            {
+                Log(srv.name + " - AlarmThread: GetActiveAlarms failed with error " + pollRes + ", continuing with subscription only.");
+            }
+
             Log(srv.name + " - AlarmThread: entering receive loop.");
 
             // Receive loop
