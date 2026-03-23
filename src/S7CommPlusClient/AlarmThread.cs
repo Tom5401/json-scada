@@ -210,7 +210,8 @@ partial class MainClass
             { "groupId",           (int)dai.HmiInfo.GroupId },
             { "allStatesInfo",     (int)dai.AllStatesInfo },
             { "relationId",        new BsonInt64((long)relationId) },
-            { "dbNumber",          (int)dbNumber }
+            { "dbNumber",          (int)dbNumber },
+            { "originDbName",      srv.RelationIdNameMap.TryGetValue(relationId, out var dbName) ? dbName : "" }
         };
     }
 
