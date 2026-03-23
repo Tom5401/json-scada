@@ -188,6 +188,9 @@ partial class MainClass
             SdValueToBson(av?.SD_10),
         };
 
+        uint relationId = (uint)(dai.CpuAlarmId >> 32);
+        uint dbNumber   = relationId & 0xFFFF;
+
         return new BsonDocument
         {
             { "cpuAlarmId",        (long)dai.CpuAlarmId },
@@ -205,7 +208,9 @@ partial class MainClass
             { "alarmClass",        (int)dai.HmiInfo.AlarmClass },
             { "alarmClassName",    AlarmClassNames.TryGetValue(dai.HmiInfo.AlarmClass, out var cn) ? cn : $"Unknown ({dai.HmiInfo.AlarmClass})" },
             { "groupId",           (int)dai.HmiInfo.GroupId },
-            { "allStatesInfo",     (int)dai.AllStatesInfo }
+            { "allStatesInfo",     (int)dai.AllStatesInfo },
+            { "relationId",        new BsonInt64((long)relationId) },
+            { "dbNumber",          (int)dbNumber }
         };
     }
 
