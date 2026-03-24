@@ -247,6 +247,7 @@ partial class MainClass
             // AckTimestamp is DateTime.UnixEpoch when unacknowledged (protocol sends 0) — confirmed via PLCSIM trace
             { "ackState",          dai.AsCgs.AckTimestamp != DateTime.UnixEpoch },
             { "connectionId",      srv.protocolConnectionNumber },
+            { "connectionName",    srv.name ?? "" },
             { "createdAt",         new BsonDateTime(DateTime.UtcNow) },
             { "priority",          (int)dai.HmiInfo.Priority },
             { "alarmClass",        (int)dai.HmiInfo.AlarmClass },
