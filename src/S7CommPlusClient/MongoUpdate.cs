@@ -112,7 +112,7 @@ partial class MainClass
 
                                     if (results.Count > 0)
                                     {
-                                        S7CPconns[conn_index].LastNewKeyCreated = results[0]._id.ToDouble() + 1;
+                                        S7CPconns[conn_index].LastNewKeyCreated = results[0]._id + 1;
                                     }
                                     else
                                     {

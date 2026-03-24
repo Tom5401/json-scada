@@ -19,15 +19,15 @@ partial class MainClass
     [BsonIgnoreExtraElements]
     public class rtDataId
     {
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0.0)]
-        public BsonDouble _id = 0.0;
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double _id = 0.0;
     }
 
     [BsonIgnoreExtraElements]
     public class protocolDestination
     {
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0.0)]
-        public BsonDouble protocolDestinationConnectionNumber = 0.0;
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double protocolDestinationConnectionNumber = 0.0;
         public BsonDouble protocolDestinationCommonAddress = 0.0;
         public BsonDouble protocolDestinationObjectAddress = 0.0;
         public BsonDouble protocolDestinationASDU = 0.0;

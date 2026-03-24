@@ -149,25 +149,25 @@ partial class MainClass
     public class rtCommand
     {
         public BsonObjectId id { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceConnectionNumber { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceCommonAddress { get; set; }
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double protocolSourceConnectionNumber { get; set; }
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double protocolSourceCommonAddress { get; set; }
         [BsonDefaultValue("")]
         public BsonString protocolSourceObjectAddress { get; set; }
         [BsonDefaultValue("")]
         public BsonString protocolSourceASDU { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble protocolSourceCommandDuration { get; set; }
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double protocolSourceCommandDuration { get; set; }
         [BsonDefaultValue(false)]
         public BsonBoolean protocolSourceCommandUseSBO { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble pointKey { get; set; }
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double pointKey { get; set; }
         [BsonDefaultValue("")]
         public BsonString tag { get; set; }
         public BsonDateTime timeTag { get; set; }
-        [BsonSerializer(typeof(BsonDoubleSerializer)), BsonDefaultValue(0)]
-        public BsonDouble value { get; set; }
+        [BsonSerializer(typeof(NativeDoubleSerializer)), BsonDefaultValue(0.0)]
+        public double value { get; set; }
         [BsonDefaultValue("")]
         public BsonString valueString { get; set; }
         [BsonDefaultValue("")]
@@ -194,6 +194,50 @@ partial class MainClass
     static void Log(Exception e, int level = 1)
     {
         Log(e.ToString(), level);
+    }
+
+    // Permissive deserializer returning native double (safe for BsonDefaultValue)
+    public class NativeDoubleSerializer : SerializerBase<double>
+    {
+        public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, double dval)
+        {
+            context.Writer.WriteDouble(dval);
+        }
+        public override double Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+        {
+            var type = context.Reader.GetCurrentBsonType();
+            double dval = 0.0;
+            switch (type)
+            {
+                case BsonType.Double:
+                    return context.Reader.ReadDouble();
+                case BsonType.Null:
+                    context.Reader.ReadNull();
+                    break;
+                case BsonType.String:
+                    try { dval = double.Parse(context.Reader.ReadString()); } catch { }
+                    break;
+                case BsonType.ObjectId:
+                    try { dval = double.Parse(context.Reader.ReadObjectId().ToString()); } catch { }
+                    break;
+                case BsonType.JavaScript:
+                    try { dval = double.Parse(context.Reader.ReadJavaScript()); } catch { }
+                    break;
+                case BsonType.Decimal128:
+                    dval = Convert.ToDouble(context.Reader.ReadDecimal128());
+                    break;
+                case BsonType.Boolean:
+                    dval = Convert.ToDouble(context.Reader.ReadBoolean());
+                    break;
+                case BsonType.Int32:
+                    dval = context.Reader.ReadInt32();
+                    break;
+                case BsonType.Int64:
+                    dval = context.Reader.ReadInt64();
+                    break;
+            }
+            return dval;
+        }
     }
 
     // BsonDouble permissive deserializer
