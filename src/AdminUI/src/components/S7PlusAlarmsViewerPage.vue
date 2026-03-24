@@ -95,6 +95,10 @@
       <template #[`item.additionalText3`]="{ item }">
         {{ item.additionalTexts && item.additionalTexts[2] }}
       </template>
+
+      <template #[`item.connectionId`]="{ item }">
+        {{ connectionName(item.connectionId) }}
+      </template>
     </v-data-table>
 
     <v-dialog v-model="confirmState.visible" max-width="400">
@@ -140,6 +144,7 @@ const alarms = ref([])
 const statusFilter = ref('All')
 const alarmClassFilter = ref('All')
 const pendingAcks = ref(new Set())
+const connectionNameMap = ref({})
 let refreshTimer = null
 
 const confirmState = ref({
@@ -218,6 +223,24 @@ const filteredAlarms = computed(() => {
   })
 })
 
+const fetchConnectionNames = async () => {
+  try {
+    const response = await fetch('/Invoke/auth/listProtocolConnections')
+    const json = await response.json()
+    if (Array.isArray(json)) {
+      const map = {}
+      json.forEach(conn => {
+        map[conn.protocolConnectionNumber] = conn.name
+      })
+      connectionNameMap.value = map
+    }
+  } catch (err) {
+    console.warn('Failed to fetch protocol connections:', err)
+  }
+}
+
+const connectionName = (id) => connectionNameMap.value[id] || String(id)
+
 const fetchAlarms = async () => {
   try {
     const response = await fetch('/Invoke/auth/listS7PlusAlarms')
@@ -280,7 +303,7 @@ const executeDeleteFiltered = async () => {
 
 onMounted(async () => {
   document.documentElement.style.overflowY = 'scroll'
-  await fetchAlarms()
+  await Promise.all([fetchAlarms(), fetchConnectionNames()])
   refreshTimer = setInterval(fetchAlarms, 5000)
 })
 
