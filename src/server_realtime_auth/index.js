@@ -368,7 +368,6 @@ async function touchActiveTags(points) {
       }
     )
 
-<<<<<<< HEAD
     // S7Plus alarm events delete endpoint (uses native db handle, not Mongoose)
     app.post(
       OPCAPI_AP + 'auth/deleteS7PlusAlarms',
@@ -411,8 +410,7 @@ async function touchActiveTags(points) {
       }
     )
 
-=======
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
+
     // S7Plus alarm acknowledge endpoint
     app.post(
       OPCAPI_AP + 'auth/ackS7PlusAlarm',

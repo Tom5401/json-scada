@@ -93,21 +93,12 @@ partial class MainClass
                             double cmdValue = change.FullDocument.value;
                             string cmdValueString = change.FullDocument.valueString.ToString();
 
-<<<<<<< HEAD
-                            // Handle alarm acknowledgment (sent by admin UI with ASDU "s7plus-alarm-ack")
-                            if (asdu == "s7plus-alarm-ack")
-                            {
-                                Log("MongoDB CMD CS - " + srv.name + " - Alarm ACK for cpuAlarmId " + address);
-                                string ackResult;
-                                bool ackOk = false;
-=======
                             // Alarm acknowledgement command — bypass tag write path
                             if (asdu == "s7plus-alarm-ack")
                             {
                                 Log("MongoDB CMD CS - " + srv.name + " - Alarm ack for cpuAlarmId: " + address);
                                 bool ackSuccess = false;
                                 string ackResultDescription = "";
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
                                 try
                                 {
                                     ulong cpuAlarmId = ulong.Parse(address);
@@ -117,14 +108,6 @@ partial class MainClass
                                     // contention, and the AckJob completion notification arrives there naturally.
                                     var pending = new PendingAlarmAck { CpuAlarmId = cpuAlarmId };
                                     srv.PendingAcks.Enqueue(pending);
-<<<<<<< HEAD
-                                    ackOk = await pending.Completion.Task;
-                                    ackResult = ackOk ? "OK" : "SendAlarmAck failed";
-                                }
-                                catch (Exception ex)
-                                {
-                                    ackResult = "Alarm ACK failed: " + ex.Message;
-=======
                                     ackSuccess = await pending.Completion.Task;
                                     ackResultDescription = ackSuccess ? "OK" : "SendAlarmAck failed";
                                 }
@@ -132,17 +115,12 @@ partial class MainClass
                                 {
                                     ackResultDescription = "Alarm ack exception: " + ex.Message;
                                     Log("MongoDB CMD CS - " + srv.name + " - " + ackResultDescription);
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
                                 }
 
                                 // If ack reached the PLC, update ackState in s7plusAlarmEvents.
                                 // The alarm subscription connection receives an unparseable ack
                                 // confirmation PDU (driver limitation), so we update MongoDB directly.
-<<<<<<< HEAD
-                                if (ackOk)
-=======
                                 if (ackSuccess)
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
                                 {
                                     var alarmCollection = DB.GetCollection<BsonDocument>(AlarmEventsCollectionName);
                                     var alarmFilter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", address);
@@ -152,25 +130,15 @@ partial class MainClass
                                     await alarmCollection.UpdateManyAsync(alarmFilter, alarmUpdate);
                                     Log("MongoDB CMD CS - " + srv.name + " - ackState updated in s7plusAlarmEvents for cpuAlarmId: " + address);
                                 }
-<<<<<<< HEAD
-                                Log("MongoDB CMD CS - " + srv.name + " - Alarm ACK result: " + ackResult);
-=======
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
 
                                 // Update commandsQueue as delivered (same pattern as tag write)
                                 filter = new BsonDocument(new BsonDocument("_id", change.FullDocument.id));
                                 update = new BsonDocument{ {"$set",
                                     new BsonDocument{
                                         { "delivered", true },
-<<<<<<< HEAD
-                                        { "ack", ackOk },
-                                        { "ackTimeTag", new BsonDateTime(DateTime.Now) },
-                                        { "resultDescription", ackResult }
-=======
                                         { "ack", ackSuccess },
                                         { "ackTimeTag", new BsonDateTime(DateTime.Now) },
                                         { "resultDescription", ackResultDescription }
->>>>>>> ae59194e49a7e6d197412241d1144eea4e47d43c
                                     }
                                 } };
                                 await collection.UpdateOneAsync(filter, update);
