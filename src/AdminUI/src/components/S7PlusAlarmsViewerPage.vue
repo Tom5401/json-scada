@@ -19,6 +19,16 @@
           density="compact"
         />
       </v-col>
+      <v-col cols="12" sm="4" md="3">
+        <v-btn
+          color="red"
+          density="compact"
+          :disabled="filteredAlarms.length === 0"
+          @click="handleDeleteFiltered"
+        >
+          Delete Filtered ({{ filteredAlarms.length }})
+        </v-btn>
+      </v-col>
     </v-row>
 
     <v-data-table
@@ -38,6 +48,17 @@
       <template #[`item.ackState`]="{ item }">
         <v-icon v-if="item.ackState" color="green">mdi-check</v-icon>
         <v-icon v-else color="red">mdi-close</v-icon>
+      </template>
+
+      <template #[`item.delete`]="{ item }">
+        <v-btn
+          icon
+          density="compact"
+          variant="text"
+          @click="handleDeleteRow(item)"
+        >
+          <v-icon color="red">mdi-delete</v-icon>
+        </v-btn>
       </template>
 
       <template #[`item.date`]="{ item }">
@@ -60,6 +81,40 @@
         {{ item.additionalTexts && item.additionalTexts[2] }}
       </template>
     </v-data-table>
+
+    <v-dialog v-model="confirmState.visible" max-width="400">
+      <v-card>
+        <v-card-title>
+          <template v-if="confirmState.type === 'row-active'">
+            This alarm is still active on the PLC
+          </template>
+          <template v-else>
+            Delete Filtered Alarms
+          </template>
+        </v-card-title>
+        <v-card-text>
+          <template v-if="confirmState.type === 'row-active'">
+            Deleting it will only remove the history record — the alarm remains active on the PLC.
+          </template>
+          <template v-else>
+            Delete {{ confirmState.count }} alarm record(s)? This cannot be undone.
+          </template>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="confirmState.visible = false">Cancel</v-btn>
+          <v-btn
+            color="red"
+            @click="confirmState.type === 'row-active'
+              ? executeDeleteRow(confirmState.item)
+              : executeDeleteFiltered()"
+          >
+            <template v-if="confirmState.type === 'row-active'">Delete anyway</template>
+            <template v-else>Delete</template>
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -71,15 +126,25 @@ const statusFilter = ref('All')
 const alarmClassFilter = ref('All')
 let refreshTimer = null
 
+const confirmState = ref({
+  visible: false,
+  type: null,
+  item: null,
+  count: 0
+})
+
 const headers = [
   { title: 'Source', key: 'connectionId', sortable: true },
   { title: 'Date', key: 'date', sortable: false },
   { title: 'Time', key: 'time', sortable: false },
   { title: 'Status', key: 'alarmState', sortable: true },
   { title: 'Acknowledge', key: 'ackState', sortable: true },
+  { title: 'Delete', key: 'delete', sortable: false },
   { title: 'Alarm class name', key: 'alarmClassName', sortable: true },
   { title: 'Event text', key: 'alarmText', sortable: true },
   { title: 'ID', key: 'cpuAlarmId', sortable: true },
+  { title: 'Origin DB Name', key: 'originDbName', sortable: true },
+  { title: 'DB Number', key: 'dbNumber', sortable: true },
   { title: 'Additional text 1', key: 'additionalText1', sortable: false },
   { title: 'Additional text 2', key: 'additionalText2', sortable: false },
   { title: 'Additional text 3', key: 'additionalText3', sortable: false },
@@ -125,6 +190,41 @@ const fetchAlarms = async () => {
   } catch (err) {
     console.warn('Failed to fetch S7Plus alarms:', err)
   }
+}
+
+const handleDeleteRow = (item) => {
+  if (item.alarmState === 'Coming' && !item.ackState) {
+    confirmState.value = { visible: true, type: 'row-active', item, count: 0 }
+  } else {
+    executeDeleteRow(item)
+  }
+}
+
+const executeDeleteRow = async (item) => {
+  const idx = alarms.value.findIndex(a => a._id === item._id)
+  if (idx !== -1) alarms.value.splice(idx, 1)
+  confirmState.value.visible = false
+  await fetch('/Invoke/auth/deleteS7PlusAlarms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: [item._id] })
+  })
+}
+
+const handleDeleteFiltered = () => {
+  confirmState.value = { visible: true, type: 'bulk', item: null, count: filteredAlarms.value.length }
+}
+
+const executeDeleteFiltered = async () => {
+  const ids = filteredAlarms.value.map(a => a._id)
+  const toRemove = new Set(ids)
+  alarms.value = alarms.value.filter(a => !toRemove.has(a._id))
+  confirmState.value.visible = false
+  await fetch('/Invoke/auth/deleteS7PlusAlarms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids })
+  })
 }
 
 onMounted(async () => {
