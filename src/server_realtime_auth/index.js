@@ -356,7 +356,7 @@ async function touchActiveTags(points) {
           if (!db) return res.status(200).send({ error: 'DB not connected' })
           const docs = await db
             .collection('s7plusAlarmEvents')
-            .find({}, { projection: { _id: 0 } })
+            .find({})
             .sort({ createdAt: -1 })
             .limit(200)
             .toArray()
