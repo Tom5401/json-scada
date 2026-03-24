@@ -368,6 +368,48 @@ async function touchActiveTags(points) {
       }
     )
 
+    // S7Plus alarm events delete endpoint (uses native db handle, not Mongoose)
+    app.post(
+      OPCAPI_AP + 'auth/deleteS7PlusAlarms',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(500).send({ error: 'DB not connected' })
+
+          const { ids, filter } = req.body
+
+          if (Array.isArray(ids) && ids.length > 0) {
+            // DELETE-02: single or multi-row delete by _id
+            let objectIds
+            try {
+              objectIds = ids.map(id => new ObjectId(id))
+            } catch (e) {
+              return res.status(400).send({ error: 'Invalid ObjectId in ids array' })
+            }
+            await db
+              .collection('s7plusAlarmEvents')
+              .deleteMany({ _id: { $in: objectIds } })
+          } else if (filter && typeof filter === 'object') {
+            // DELETE-03: bulk delete by filter fields
+            const query = {}
+            if (filter.alarmState !== undefined) query.alarmState = filter.alarmState
+            if (filter.alarmClassName !== undefined) query.alarmClassName = filter.alarmClassName
+            if (Object.keys(query).length === 0) {
+              return res.status(400).send({ error: 'filter must include at least one field (alarmState or alarmClassName)' })
+            }
+            await db.collection('s7plusAlarmEvents').deleteMany(query)
+          } else {
+            return res.status(400).send({ error: 'Body must contain ids (array) or filter (object)' })
+          }
+
+          res.status(204).send() // D-01: 204 No Content on success
+        } catch (err) {
+          Log.log(err) // D-02: log then 500
+          res.status(500).send({ error: err.message })
+        }
+      }
+    )
+
     require('./app/routes/user.routes')(
       app,
       OPCAPI_AP,
