@@ -117,7 +117,7 @@ partial class MainClass
                 }
                 catch (Exception ex)
                 {
-                    Log(srv.name + " - AlarmThread: error parsing alarm notification: " + ex.Message, LogLevelDetailed);
+                    Log(srv.name + " - AlarmThread: non-alarm notification (ack confirmation), skipping. " + ex.Message, LogLevelDebug);
                     continue;
                 }
 

@@ -90,8 +90,58 @@ partial class MainClass
 
                             string address = change.FullDocument.protocolSourceObjectAddress.ToString();
                             string asdu = change.FullDocument.protocolSourceASDU.ToString();
-                            double cmdValue = change.FullDocument.value.ToDouble();
+                            double cmdValue = change.FullDocument.value;
                             string cmdValueString = change.FullDocument.valueString.ToString();
+
+                            // Handle alarm acknowledgment (sent by admin UI with ASDU "s7plus-alarm-ack")
+                            if (asdu == "s7plus-alarm-ack")
+                            {
+                                Log("MongoDB CMD CS - " + srv.name + " - Alarm ACK for cpuAlarmId " + address);
+                                string ackResult;
+                                bool ackOk = false;
+                                try
+                                {
+                                    ulong cpuAlarmId = ulong.Parse(address);
+                                    int ackRes = srv.connection.SendAlarmAck(cpuAlarmId);
+                                    ackOk = (ackRes == 0);
+                                    ackResult = ackOk ? "OK" : "SendAlarmAck error: " + ackRes;
+
+                                    // Update the alarm event document in s7plusAlarmEvents
+                                    if (ackOk && MongoDatabase != null)
+                                    {
+                                        try
+                                        {
+                                            var alarmColl = MongoDatabase.GetCollection<BsonDocument>(AlarmEventsCollectionName);
+                                            var ackFilter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", address);
+                                            var ackUpdate = Builders<BsonDocument>.Update
+                                                .Set("ackState", true)
+                                                .Set("ackTimestamp", new BsonDateTime(DateTime.UtcNow));
+                                            var ackUpdateResult = await alarmColl.UpdateManyAsync(ackFilter, ackUpdate);
+                                            Log("MongoDB CMD CS - " + srv.name + " - Updated " + ackUpdateResult.ModifiedCount + " alarm event(s) for cpuAlarmId " + address);
+                                        }
+                                        catch (Exception dbEx)
+                                        {
+                                            Log("MongoDB CMD CS - " + srv.name + " - Failed to update alarm events: " + dbEx.Message);
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    ackResult = "Alarm ACK failed: " + ex.Message;
+                                }
+                                Log("MongoDB CMD CS - " + srv.name + " - Alarm ACK result: " + ackResult);
+                                filter = new BsonDocument(new BsonDocument("_id", change.FullDocument.id));
+                                update = new BsonDocument{ {"$set",
+                                    new BsonDocument{
+                                        { "delivered", true },
+                                        { "ack", ackOk },
+                                        { "ackTimeTag", new BsonDateTime(DateTime.Now) },
+                                        { "resultDescription", ackResult }
+                                    }
+                                } };
+                                await collection.UpdateOneAsync(filter, update);
+                                break;
+                            }
 
                             // Resolve the ItemAddress for this tag
                             if (!srv.AddressCache.TryGetValue(address, out ItemAddress itemAddr))
