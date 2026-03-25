@@ -172,6 +172,18 @@ async function ensureActiveTagRequestIndexes() {
   }
 }
 
+async function ensureS7PlusAlarmIndexes() {
+  if (!db) return
+
+  try {
+    await db
+      .collection('s7plusAlarmEvents')
+      .createIndex({ createdAt: -1 }, { name: 'idx_createdAt_desc' })
+  } catch (err) {
+    Log.log('Error ensuring s7plusAlarmEvents indexes: ' + err.message)
+  }
+}
+
 async function touchActiveTags(points) {
   if (!db || !Array.isArray(points) || points.length === 0) return
 
@@ -358,7 +370,6 @@ async function touchActiveTags(points) {
             .collection('s7plusAlarmEvents')
             .find({})
             .sort({ createdAt: -1 })
-            .limit(200)
             .toArray()
           res.status(200).send(docs)
         } catch (err) {
@@ -2661,6 +2672,7 @@ async function touchActiveTags(points) {
             HintMongoIsConnected = true
             db = clientMongo.db(jsConfig.mongoDatabaseName)
             await ensureActiveTagRequestIndexes()
+            await ensureS7PlusAlarmIndexes()
           })
           .catch(function (err) {
             db = null
