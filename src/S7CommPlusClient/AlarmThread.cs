@@ -199,6 +199,10 @@ partial class MainClass
         { 37, "2_NietUrgent"}
     };
 
+    // Alarm classes that require operator acknowledgement (per TIA Portal configuration).
+    // Used to set isAcknowledgeable on every alarm document written to MongoDB.
+    private static readonly HashSet<ushort> AcknowledgeableClasses = new HashSet<ushort> { 33, 37, 39 };
+
     static BsonDocument BuildAlarmDocument(AlarmsDai dai, S7CP_connection srv)
     {
         string alarmState = dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming
@@ -255,6 +259,7 @@ partial class MainClass
             { "priority",          (int)dai.HmiInfo.Priority },
             { "alarmClass",        (int)dai.HmiInfo.AlarmClass },
             { "alarmClassName",    AlarmClassNames.TryGetValue(dai.HmiInfo.AlarmClass, out var cn) ? cn : $"Unknown ({dai.HmiInfo.AlarmClass})" },
+            { "isAcknowledgeable", AcknowledgeableClasses.Contains(dai.HmiInfo.AlarmClass) },
             { "groupId",           (int)dai.HmiInfo.GroupId },
             { "allStatesInfo",     (int)dai.AllStatesInfo },
             { "relationId",        new BsonInt64((long)relationId) },
