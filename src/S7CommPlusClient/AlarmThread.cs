@@ -246,8 +246,8 @@ partial class MainClass
         {
             { "cpuAlarmId",        dai.CpuAlarmId.ToString() },
             { "alarmState",        alarmState },
-            { "alarmText",         texts?.AlarmText ?? "" },
-            { "infoText",          texts?.Infotext ?? "" },
+            { "alarmText",         ResolveAlarmText(texts?.AlarmText ?? "", av) },
+            { "infoText",          ResolveAlarmText(texts?.Infotext ?? "", av) },
             { "additionalTexts",   additionalTexts },
             { "associatedValues",  associatedValues },
             { "timestamp",         new BsonDateTime(dai.AsCgs.Timestamp) },
