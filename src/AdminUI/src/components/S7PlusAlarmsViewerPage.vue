@@ -20,6 +20,14 @@
         />
       </v-col>
       <v-col cols="12" sm="4" md="3">
+        <v-select
+          label="Source"
+          :items="connectionOptions"
+          v-model="connectionFilter"
+          density="compact"
+        />
+      </v-col>
+      <v-col cols="12" sm="4" md="3">
         <v-btn
           color="red"
           density="compact"
@@ -27,6 +35,16 @@
           @click="handleDeleteFiltered"
         >
           Delete Filtered ({{ filteredAlarms.length }})
+        </v-btn>
+      </v-col>
+      <v-col cols="12" sm="4" md="3">
+        <v-btn
+          color="orange"
+          density="compact"
+          :disabled="ackAllCount === 0"
+          @click="handleAckAll"
+        >
+          Ack All ({{ ackAllCount }})
         </v-btn>
       </v-col>
     </v-row>
@@ -109,6 +127,9 @@
           <template v-if="confirmState.type === 'row-active'">
             This alarm is still active on the PLC
           </template>
+          <template v-else-if="confirmState.type === 'ack-all'">
+            Acknowledge All Matching Alarms
+          </template>
           <template v-else>
             Delete Filtered Alarms
           </template>
@@ -116,6 +137,9 @@
         <v-card-text>
           <template v-if="confirmState.type === 'row-active'">
             Deleting it will only remove the history record — the alarm remains active on the PLC.
+          </template>
+          <template v-else-if="confirmState.type === 'ack-all'">
+            Acknowledge {{ confirmState.count }} unacked alarm(s) matching current filter?
           </template>
           <template v-else>
             Delete {{ confirmState.count }} alarm record(s)? This cannot be undone.
@@ -125,12 +149,15 @@
           <v-spacer />
           <v-btn @click="confirmState.visible = false">Cancel</v-btn>
           <v-btn
-            color="red"
+            :color="confirmState.type === 'ack-all' ? 'orange' : 'red'"
             @click="confirmState.type === 'row-active'
               ? executeDeleteRow(confirmState.item)
-              : executeDeleteFiltered()"
+              : confirmState.type === 'ack-all'
+                ? executeAckAll()
+                : executeDeleteFiltered()"
           >
             <template v-if="confirmState.type === 'row-active'">Delete anyway</template>
+            <template v-else-if="confirmState.type === 'ack-all'">Acknowledge</template>
             <template v-else>Delete</template>
           </v-btn>
         </v-card-actions>
@@ -145,6 +172,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 const alarms = ref([])
 const statusFilter = ref('All')
 const alarmClassFilter = ref('All')
+const connectionFilter = ref('All')
 const pendingAcks = ref(new Set())
 let refreshTimer = null
 const currentPage = ref(1)
@@ -216,6 +244,13 @@ const alarmClassOptions = computed(() => {
   return ['All', ...classes.sort()]
 })
 
+const connectionOptions = computed(() => {
+  const names = [...new Set(
+    alarms.value.map(a => a.connectionName).filter(Boolean)
+  )]
+  return ['All', ...names.sort()]
+})
+
 const filteredAlarms = computed(() => {
   return alarms.value.filter(alarm => {
     const stateMatch =
@@ -225,9 +260,16 @@ const filteredAlarms = computed(() => {
     const classMatch =
       alarmClassFilter.value === 'All' ||
       alarm.alarmClassName === alarmClassFilter.value
-    return stateMatch && classMatch
+    const connectionMatch =
+      connectionFilter.value === 'All' ||
+      alarm.connectionName === connectionFilter.value
+    return stateMatch && classMatch && connectionMatch
   })
 })
+
+const ackAllCount = computed(() =>
+  filteredAlarms.value.filter(a => !a.ackState && a.isAcknowledgeable === true).length
+)
 
 const fetchAlarms = async () => {
   try {
@@ -287,6 +329,18 @@ const executeDeleteFiltered = async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids })
   })
+}
+
+const handleAckAll = () => {
+  confirmState.value = { visible: true, type: 'ack-all', item: null, count: ackAllCount.value }
+}
+
+const executeAckAll = async () => {
+  confirmState.value.visible = false
+  const targets = filteredAlarms.value.filter(a => !a.ackState && a.isAcknowledgeable === true)
+  for (const alarm of targets) {
+    await ackAlarm(alarm.cpuAlarmId, alarm.connectionId)
+  }
 }
 
 onMounted(async () => {
