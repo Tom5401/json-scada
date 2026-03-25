@@ -38,6 +38,7 @@
       class="elevation-1"
       :items-per-page="50"
       :items-per-page-options="[25, 50, 100, 200]"
+      v-model:page="currentPage"
     >
       <template #[`item.alarmState`]="{ item }">
         <v-chip :color="item.alarmState === 'Coming' ? 'red' : 'green'" size="small">
@@ -46,22 +47,27 @@
       </template>
 
       <template #[`item.ackState`]="{ item }">
-        <v-icon v-if="item.ackState" color="green">mdi-check</v-icon>
+        <template v-if="item.isAcknowledgeable === false">
+          <span>-</span>
+        </template>
         <template v-else>
-          <v-progress-circular
-            v-if="pendingAcks.has(item.cpuAlarmId)"
-            indeterminate
-            size="16"
-            width="2"
-          />
-          <v-btn
-            v-else
-            size="x-small"
-            variant="tonal"
-            @click="ackAlarm(item.cpuAlarmId, item.connectionId)"
-          >
-            Ack
-          </v-btn>
+          <v-icon v-if="item.ackState" color="green">mdi-check</v-icon>
+          <template v-else>
+            <v-progress-circular
+              v-if="pendingAcks.has(item.cpuAlarmId)"
+              indeterminate
+              size="16"
+              width="2"
+            />
+            <v-btn
+              v-else
+              size="x-small"
+              variant="tonal"
+              @click="ackAlarm(item.cpuAlarmId, item.connectionId)"
+            >
+              Ack
+            </v-btn>
+          </template>
         </template>
       </template>
 
@@ -76,12 +82,8 @@
         </v-btn>
       </template>
 
-      <template #[`item.date`]="{ item }">
-        {{ formatDate(item.timestamp) }}
-      </template>
-
-      <template #[`item.time`]="{ item }">
-        {{ formatTime(item.timestamp) }}
+      <template #[`item.timestamp`]="{ item }">
+        {{ formatTimestamp(item.timestamp) }}
       </template>
 
       <template #[`item.additionalText1`]="{ item }">
@@ -145,6 +147,7 @@ const statusFilter = ref('All')
 const alarmClassFilter = ref('All')
 const pendingAcks = ref(new Set())
 let refreshTimer = null
+const currentPage = ref(1)
 
 const confirmState = ref({
   visible: false,
@@ -178,8 +181,8 @@ const ackAlarm = async (cpuAlarmId, connectionNumber) => {
 
 const headers = [
   { title: 'Source', key: 'connectionId', sortable: true },
-  { title: 'Date', key: 'date', sortable: false },
-  { title: 'Time', key: 'time', sortable: false },
+  { title: 'Timestamp', key: 'timestamp', sortable: false },
+  { title: 'Priority', key: 'priority', sortable: true },
   { title: 'Status', key: 'alarmState', sortable: true },
   { title: 'Acknowledge', key: 'ackState', sortable: true },
   { title: 'Delete', key: 'delete', sortable: false },
@@ -193,14 +196,17 @@ const headers = [
   { title: 'Additional text 3', key: 'additionalText3', sortable: false },
 ]
 
-const formatDate = (isoStr) => {
+const formatTimestamp = (isoStr) => {
   if (!isoStr) return ''
-  return new Date(isoStr).toLocaleDateString()
-}
-
-const formatTime = (isoStr) => {
-  if (!isoStr) return ''
-  return new Date(isoStr).toLocaleTimeString()
+  const d = new Date(isoStr)
+  const YYYY = d.getFullYear()
+  const MM = String(d.getMonth() + 1).padStart(2, '0')
+  const DD = String(d.getDate()).padStart(2, '0')
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  const ss = String(d.getSeconds()).padStart(2, '0')
+  const ms = String(d.getMilliseconds()).padStart(3, '0')
+  return `${YYYY}-${MM}-${DD}_${hh}:${mm}:${ss}.${ms}`
 }
 
 const alarmClassOptions = computed(() => {
