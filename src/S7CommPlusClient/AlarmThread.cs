@@ -194,6 +194,9 @@ partial class MainClass
     private static readonly Dictionary<ushort, string> AlarmClassNames = new Dictionary<ushort, string>
     {
         { 33, "Acknowledgment required" },
+        { 39, "4_UrgentOnderhoud"},
+        { 43, "9_Logging"},
+        { 37, "2_NietUrgent"}
     };
 
     static BsonDocument BuildAlarmDocument(AlarmsDai dai, S7CP_connection srv)
