@@ -189,19 +189,27 @@ partial class MainClass
     }
 
     // TIA Portal standard alarm class IDs mapped to human-readable names.
-    // IDs confirmed via PLCSIM trace (see 02-01-SUMMARY.md).
+    // IDs uitgelezen van Levvel_Release45
     // For IDs not in this map, BuildAlarmDocument() returns "Unknown (N)".
     private static readonly Dictionary<ushort, string> AlarmClassNames = new Dictionary<ushort, string>
     {
-        { 33, "Acknowledgment required" },
+        { 33, "Acknowledgment - high" },
+        { 34, "Acknowledgement (A)" },
+        { 35, "No Acknowledgement (NA)" },
+        { 36, "1_Urgent"},
+        { 37, "2_NietUrgent"},
+        { 38, "3_BedieningEnProcess"},
         { 39, "4_UrgentOnderhoud"},
-        { 43, "9_Logging"},
-        { 37, "2_NietUrgent"}
+        { 40, "5_NietUrgentOnderhoud"},
+        { 41, "6_Attentiesignaal"},
+        { 42, "7_BeveiligingEnBewaking"},
+        { 43, "8_Logging"},
+        { 44, "9_Overig"}
     };
 
     // Alarm classes that require operator acknowledgement (per TIA Portal configuration).
     // Used to set isAcknowledgeable on every alarm document written to MongoDB.
-    private static readonly HashSet<ushort> AcknowledgeableClasses = new HashSet<ushort> { 33, 37, 39 };
+    private static readonly HashSet<ushort> AcknowledgeableClasses = new HashSet<ushort> { 33, 34, 36, 37, 39 };
 
     static BsonDocument BuildAlarmDocument(AlarmsDai dai, S7CP_connection srv)
     {
