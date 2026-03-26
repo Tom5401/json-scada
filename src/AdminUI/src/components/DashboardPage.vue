@@ -91,6 +91,12 @@
       route: '/s7plus-alarms',
     },
     {
+      titleKey: 'dashboard.datablockBrowser',
+      icon: Database,
+      color: 'primary',
+      route: '/s7plus-datablocks',
+    },
+    {
       titleKey: 'dashboard.tabularViewer',
       icon: Table,
       color: 'primary',
