@@ -3,7 +3,7 @@
     <h2 class="mb-4">S7Plus Alarms Viewer</h2>
 
     <v-row class="mb-2">
-      <v-col cols="12" sm="4" md="3">
+      <v-col cols="12" sm="4" md="2">
         <v-select
           label="Status"
           :items="['All', 'Incoming', 'Outgoing']"
@@ -11,7 +11,7 @@
           density="compact"
         />
       </v-col>
-      <v-col cols="12" sm="4" md="3">
+      <v-col cols="12" sm="4" md="2">
         <v-select
           label="Alarm Class"
           :items="alarmClassOptions"
@@ -19,7 +19,7 @@
           density="compact"
         />
       </v-col>
-      <v-col cols="12" sm="4" md="3">
+      <v-col cols="12" sm="4" md="2">
         <v-select
           label="Source"
           :items="connectionOptions"
@@ -27,7 +27,7 @@
           density="compact"
         />
       </v-col>
-      <v-col cols="12" sm="4" md="3">
+      <v-col cols="12" sm="4" md="2">
         <v-btn
           color="red"
           density="compact"
@@ -37,7 +37,7 @@
           Delete Filtered ({{ filteredAlarms.length }})
         </v-btn>
       </v-col>
-      <v-col cols="12" sm="4" md="3">
+      <v-col cols="12" sm="4" md="2">
         <v-btn
           color="orange"
           density="compact"
@@ -104,7 +104,7 @@
         {{ formatTimestamp(item.timestamp) }}
       </template>
 
-      <template #[`item.additionalText1`]="{ item }">
+      <!-- <template #[`item.additionalText1`]="{ item }">
         {{ item.additionalTexts && item.additionalTexts[0] }}
       </template>
 
@@ -114,7 +114,7 @@
 
       <template #[`item.additionalText3`]="{ item }">
         {{ item.additionalTexts && item.additionalTexts[2] }}
-      </template>
+      </template> -->
 
       <template #[`item.connectionId`]="{ item }">
         {{ item.connectionName || item.connectionId }}
@@ -208,10 +208,10 @@ const ackAlarm = async (cpuAlarmId, connectionNumber) => {
 }
 
 const headers = [
-  { title: 'Source', key: 'connectionId', sortable: true },
-  { title: 'Timestamp', key: 'timestamp', sortable: false },
+  { title: 'Source', key: 'connectionId', sortable: false },
+  { title: 'Timestamp', key: 'timestamp', sortable: true },
   { title: 'Priority', key: 'priority', sortable: true },
-  { title: 'Status', key: 'alarmState', sortable: true },
+  { title: 'Status', key: 'alarmState', sortable: false },
   { title: 'Acknowledge', key: 'ackState', sortable: true },
   { title: 'Delete', key: 'delete', sortable: false },
   { title: 'Alarm class name', key: 'alarmClassName', sortable: true },
@@ -219,9 +219,9 @@ const headers = [
   { title: 'ID', key: 'cpuAlarmId', sortable: true },
   { title: 'Origin DB Name', key: 'originDbName', sortable: true },
   { title: 'DB Number', key: 'dbNumber', sortable: true },
-  { title: 'Additional text 1', key: 'additionalText1', sortable: false },
-  { title: 'Additional text 2', key: 'additionalText2', sortable: false },
-  { title: 'Additional text 3', key: 'additionalText3', sortable: false },
+  // { title: 'Additional text 1', key: 'additionalText1', sortable: false },
+  // { title: 'Additional text 2', key: 'additionalText2', sortable: false },
+  // { title: 'Additional text 3', key: 'additionalText3', sortable: false },
 ]
 
 const formatTimestamp = (isoStr) => {
