@@ -512,6 +512,53 @@ async function touchActiveTags(points) {
       }
     )
 
+    // S7Plus touch active tag requests endpoint
+    app.post(
+      OPCAPI_AP + 'auth/touchS7PlusActiveTagRequests',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+          const items = req.body
+          if (!Array.isArray(items) || items.length === 0)
+            return res.status(400).send({ error: 'Body must be a non-empty array of {connectionNumber, protocolSourceObjectAddress}' })
+          const now = new Date()
+          const expiresAt = new Date(now.getTime() + ACTIVE_TAG_TTL_SECONDS * 1000)
+          const operations = []
+          for (const item of items) {
+            const conn = typeof item.connectionNumber === 'number' ? item.connectionNumber : parseInt(item.connectionNumber, 10)
+            const addr = item.protocolSourceObjectAddress
+            if (isNaN(conn) || typeof addr !== 'string' || addr === '') continue
+            operations.push({
+              updateOne: {
+                filter: {
+                  protocolSourceConnectionNumber: conn,
+                  protocolSourceObjectAddress: addr,
+                },
+                update: {
+                  $set: {
+                    protocolSourceConnectionNumber: conn,
+                    protocolSourceObjectAddress: addr,
+                    updatedAt: now,
+                    expiresAt: expiresAt,
+                    source: 'tag-tree',
+                  },
+                },
+                upsert: true,
+              },
+            })
+          }
+          if (operations.length === 0)
+            return res.status(400).send({ error: 'No valid items in array (each must have connectionNumber and protocolSourceObjectAddress)' })
+          await db.collection(COLL_ACTIVE_TAG_REQUESTS).bulkWrite(operations, { ordered: false })
+          res.status(200).send({ ok: true, touched: operations.length })
+        } catch (err) {
+          Log.log(err)
+          res.status(500).send({ error: err.message })
+        }
+      }
+    )
+
     require('./app/routes/user.routes')(
       app,
       OPCAPI_AP,
