@@ -113,6 +113,7 @@ partial class MainClass
     }
 
     public static string AlarmEventsCollectionName = "s7plusAlarmEvents";
+    public static string DatablocksCollectionName = "s7plusDatablocks";
 
     // Protocol driver instances configuration
     [BsonIgnoreExtraElements]
@@ -336,6 +337,26 @@ partial class MainClass
         catch (Exception e)
         {
             Log("Failed to ensure active tag request indexes: " + e.Message, LogLevelDetailed);
+        }
+    }
+
+    static void EnsureDatablockIndexes(IMongoDatabase db)
+    {
+        try
+        {
+            var col = db.GetCollection<BsonDocument>(DatablocksCollectionName);
+            col.Indexes.CreateOne(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys
+                    .Ascending("connectionNumber")
+                    .Ascending("db_name"),
+                new CreateIndexOptions { Unique = true, Name = "uniq_conn_dbname" }));
+            col.Indexes.CreateOne(new CreateIndexModel<BsonDocument>(
+                Builders<BsonDocument>.IndexKeys.Ascending("connectionNumber"),
+                new CreateIndexOptions { Name = "conn_number" }));
+        }
+        catch (Exception e)
+        {
+            Log("Failed to ensure datablock indexes: " + e.Message, LogLevelDetailed);
         }
     }
 
