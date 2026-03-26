@@ -363,8 +363,8 @@ partial class MainClass
                     { "connectionNumber",  srv.protocolConnectionNumber },
                     { "db_name",           db.db_name },
                     { "db_number",         (BsonInt32)(int)db.db_number },
-                    { "db_block_relid",    (BsonInt32)(int)db.db_block_relid },
-                    { "db_block_ti_relid", (BsonInt32)(int)db.db_block_ti_relid }
+                    { "db_block_relid",    (BsonInt64)(long)(uint)db.db_block_relid },
+                    { "db_block_ti_relid", (BsonInt64)(long)(uint)db.db_block_ti_relid }
                 };
                 writes.Add(new ReplaceOneModel<BsonDocument>(filter, doc) { IsUpsert = true });
             }
