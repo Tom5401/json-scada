@@ -13,6 +13,7 @@ import LogViewerPage from '../components/LogViewerPage.vue'
 import CustomDevelopmentsPage from '../components/CustomDevelopmentsPage.vue'
 import SVGEditPage from '../components/SVGEditPage.vue'
 import S7PlusAlarmsViewerPage from '../components/S7PlusAlarmsViewerPage.vue'
+import DatablockBrowserPage from '../components/DatablockBrowserPage.vue'
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -42,6 +43,7 @@ const routes = [
   { path: '/custom-developments', component: CustomDevelopmentsPage },
   { path: '/svg-edit', component: SVGEditPage },
   { path: '/s7plus-alarms', component: S7PlusAlarmsViewerPage },
+  { path: '/s7plus-datablocks', component: DatablockBrowserPage },
 ]
 
 const router = createRouter({

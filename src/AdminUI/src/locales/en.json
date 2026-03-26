@@ -36,7 +36,8 @@
     "customDevelopments": "Custom Developments",
     "open": "Open",
     "svgedit": "SVG Editor",
-    "s7plusAlarms": "S7Plus Alarms"
+    "s7plusAlarms": "S7Plus Alarms",
+    "datablockBrowser": "Datablock Browser"
   },
   "login": {
     "title": "Login",
