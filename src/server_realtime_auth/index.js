@@ -459,6 +459,58 @@ async function touchActiveTags(points) {
       }
     )
 
+    // S7Plus datablock list endpoint
+    app.use(
+      OPCAPI_AP + 'auth/listS7PlusDatablocks',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+          const connectionNumber = parseInt(req.query.connectionNumber, 10)
+          if (isNaN(connectionNumber))
+            return res.status(400).send({ error: 'Missing or invalid connectionNumber query parameter' })
+          const docs = await db
+            .collection('s7plusDatablocks')
+            .find({ connectionNumber: connectionNumber })
+            .sort({ db_name: 1 })
+            .toArray()
+          res.status(200).send(docs)
+        } catch (err) {
+          Log.log(err)
+          res.status(500).send({ error: err.message })
+        }
+      }
+    )
+
+    // S7Plus tags-for-datablock endpoint
+    app.use(
+      OPCAPI_AP + 'auth/listS7PlusTagsForDb',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+          const connectionNumber = parseInt(req.query.connectionNumber, 10)
+          if (isNaN(connectionNumber))
+            return res.status(400).send({ error: 'Missing or invalid connectionNumber query parameter' })
+          const dbName = req.query.dbName
+          if (!dbName || typeof dbName !== 'string')
+            return res.status(400).send({ error: 'Missing or invalid dbName query parameter' })
+          const escapedDbName = dbName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          const docs = await db
+            .collection(COLL_REALTIME)
+            .find({
+              protocolSourceConnectionNumber: connectionNumber,
+              protocolSourceBrowsePath: { $regex: new RegExp('^' + escapedDbName + '(\\.|$)') },
+            })
+            .toArray()
+          res.status(200).send(docs)
+        } catch (err) {
+          Log.log(err)
+          res.status(200).send({ error: err.message })
+        }
+      }
+    )
+
     require('./app/routes/user.routes')(
       app,
       OPCAPI_AP,
