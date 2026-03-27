@@ -119,6 +119,19 @@
       <template #[`item.connectionId`]="{ item }">
         {{ item.connectionName || item.connectionId }}
       </template>
+
+      <template #[`item.originDbName`]="{ item }">
+        <template v-if="item.originDbName">
+          <a
+            :href="`/#/s7plus-tag-tree?db=${encodeURIComponent(item.originDbName)}&connectionNumber=${item.connectionId}`"
+            target="_blank"
+            @click.stop=""
+          >{{ item.originDbName }}</a>
+        </template>
+        <template v-else>
+          <span>-</span>
+        </template>
+      </template>
     </v-data-table>
 
     <v-dialog v-model="confirmState.visible" max-width="400">
