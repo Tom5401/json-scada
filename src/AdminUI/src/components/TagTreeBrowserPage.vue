@@ -41,9 +41,12 @@ let refreshTimer = null
 function buildTree(docs, dbName) {
   const root = { id: dbName, name: dbName, isLeaf: false, children: [] }
   for (const doc of docs) {
-    const browsePath = doc.protocolSourceBrowsePath
-    if (!browsePath) continue
-    const segments = browsePath.split('.')
+    // ungroupedDescription holds the full hierarchical path (e.g. "DB.Struct.Tag").
+    // protocolSourceBrowsePath is the PARENT path (everything before the last dot),
+    // which cannot distinguish leaves from intermediate folders.
+    const fullPath = doc.ungroupedDescription
+    if (!fullPath) continue
+    const segments = fullPath.split('.')
     const remaining = segments.slice(1) // skip DB name (segments[0])
     if (remaining.length === 0) continue
     let current = root
@@ -73,7 +76,7 @@ function buildTree(docs, dbName) {
 }
 
 function patchLeafValues(treeRoot, freshDocs) {
-  const docMap = new Map(freshDocs.map(d => [d.protocolSourceBrowsePath, d]))
+  const docMap = new Map(freshDocs.map(d => [d.ungroupedDescription, d]))
   function walk(node) {
     if (node.isLeaf) {
       const doc = docMap.get(node.id)
