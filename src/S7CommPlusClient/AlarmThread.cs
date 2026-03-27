@@ -62,8 +62,7 @@ partial class MainClass
                     try
                     {
                         var doc = BuildAlarmDocument(dai, srv);
-                        alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
-                        Log(srv.name + " - AlarmThread: pre-existing alarm written - cpuAlarmId=" + dai.CpuAlarmId);
+                        UpsertAlarmEvent(doc, srv);
                     }
                     catch (Exception ex)
                     {
@@ -146,14 +145,11 @@ partial class MainClass
                     continue;
                 }
 
-                // Build and insert alarm event document
+                // Build and upsert alarm event document
                 try
                 {
                     var doc = BuildAlarmDocument(dai, srv);
-                    alarmCollection.InsertOneAsync(doc).GetAwaiter().GetResult();
-                    Log(srv.name + " - AlarmThread: alarm event written - cpuAlarmId=" + dai.CpuAlarmId
-                        + " state=" + (dai.AsCgs.SubtypeId == (uint)AlarmsAsCgs.SubtypeIds.Coming ? "Coming" : "Going")
-                        + " text=" + (dai.AlarmTexts?.AlarmText ?? ""));
+                    UpsertAlarmEvent(doc, srv);
                 }
                 catch (Exception ex)
                 {
@@ -210,6 +206,29 @@ partial class MainClass
     // Alarm classes that require operator acknowledgement (per TIA Portal configuration).
     // Used to set isAcknowledgeable on every alarm document written to MongoDB.
     private static readonly HashSet<ushort> AcknowledgeableClasses = new HashSet<ushort> { 33, 34, 36, 37, 39 };
+
+    // Upsert by cpuAlarmId — if an event with the same cpuAlarmId already exists, update it;
+    // otherwise insert a new document. This handles the case where a "Going" event arrives
+    // after its corresponding "Coming" event has already been written, allowing the "Going"
+    // event to update the existing document rather than creating a new one.
+    static void UpsertAlarmEvent(BsonDocument doc, S7CP_connection srv)
+    {
+        try
+        {
+            var alarmCollection = MongoDatabase
+                .GetCollection<BsonDocument>(AlarmEventsCollectionName)
+                .WithWriteConcern(WriteConcern.W1);
+
+            var filter = Builders<BsonDocument>.Filter.Eq("cpuAlarmId", doc["cpuAlarmId"]);
+            var options = new ReplaceOptions { IsUpsert = true };
+            alarmCollection.ReplaceOneAsync(filter, doc, options).GetAwaiter().GetResult();
+            Log(srv.name + " - UpsertAlarmEvent: upserted alarm event with cpuAlarmId=" + doc["cpuAlarmId"], LogLevelDetailed);
+        }
+        catch (Exception e)
+        {
+            Log(srv.name + " - UpsertAlarmEvent: MongoDB upsert error: " + e.Message, LogLevelBasic);
+        }        
+    }
 
     static BsonDocument BuildAlarmDocument(AlarmsDai dai, S7CP_connection srv)
     {
