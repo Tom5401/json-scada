@@ -345,39 +345,4 @@ partial class MainClass
             }
         } while (true);
     }
-
-    static void UpsertDatablocks(S7CP_connection srv, List<S7CommPlusDriver.S7CommPlusConnection.DatablockInfo> dbInfoList)
-    {
-        if (MongoDatabase == null) return;
-        try
-        {
-            var collection = MongoDatabase.GetCollection<BsonDocument>(DatablocksCollectionName);
-            var writes = new List<WriteModel<BsonDocument>>(dbInfoList.Count);
-            foreach (var db in dbInfoList)
-            {
-                var filter = Builders<BsonDocument>.Filter.And(
-                    Builders<BsonDocument>.Filter.Eq("connectionNumber", srv.protocolConnectionNumber),
-                    Builders<BsonDocument>.Filter.Eq("db_name", db.db_name));
-                var doc = new BsonDocument
-                {
-                    { "connectionNumber",  srv.protocolConnectionNumber },
-                    { "db_name",           db.db_name },
-                    { "db_number",         (BsonInt32)(int)db.db_number },
-                    { "db_block_relid",    (BsonInt64)(long)(uint)db.db_block_relid },
-                    { "db_block_ti_relid", (BsonInt64)(long)(uint)db.db_block_ti_relid }
-                };
-                writes.Add(new ReplaceOneModel<BsonDocument>(filter, doc) { IsUpsert = true });
-            }
-            if (writes.Count > 0)
-            {
-                collection.BulkWriteAsync(writes, new BulkWriteOptions { IsOrdered = false })
-                          .GetAwaiter().GetResult();
-                Log(srv.name + " - UpsertDatablocks: " + writes.Count + " datablocks persisted.", LogLevelDetailed);
-            }
-        }
-        catch (Exception e)
-        {
-            Log(srv.name + " - UpsertDatablocks failed: " + e.Message, LogLevelBasic);
-        }
-    }
 }
