@@ -2,6 +2,16 @@
   <v-container fluid>
     <h2 class="mb-4">Tag Tree Browser — {{ dbName }}</h2>
 
+    <div class="d-flex justify-end mb-1">
+      <div class="column-header-row">
+        <span>Type</span>
+        <span>Value</span>
+        <span>Timestamp</span>
+        <span>Address</span>
+        <span>Actions</span>
+      </div>
+    </div>
+
     <v-treeview
       :items="treeItems"
       item-value="id"
@@ -18,19 +28,15 @@
         <v-icon v-else>mdi-folder</v-icon>
       </template>
       <template #append="{ item }">
-        <template v-if="item.isLeaf">
-          <v-chip size="x-small" class="ml-1">{{ item.type }}</v-chip>
-          <code class="ml-2 text-caption">{{ formatLeafValue(item) }}</code>
-          <span v-if="item.timeTagAtSource" class="ml-2 text-caption text-medium-emphasis" style="font-family: monospace;">{{ formatSourceTime(item.timeTagAtSource) }}</span>
-          <span class="ml-2 text-caption text-medium-emphasis font-weight-light" style="font-family: monospace;">{{ item.address }}</span>
-          <v-btn
-            v-if="item.commandOfSupervised !== 0"
-            variant="outlined"
-            size="x-small"
-            class="ml-2"
-            @click.stop="openWriteDialog(item)"
-          >Modify</v-btn>
-        </template>
+        <div v-if="item.isLeaf" class="leaf-columns">
+          <span class="leaf-col-type"><v-chip size="x-small">{{ item.type }}</v-chip></span>
+          <span class="leaf-col-value"><code class="text-caption">{{ formatLeafValue(item) }}</code></span>
+          <span class="leaf-col-timestamp text-caption text-medium-emphasis" style="font-family: monospace;">{{ formatSourceTime(item.timeTagAtSource) }}</span>
+          <span class="leaf-col-address text-caption text-medium-emphasis font-weight-light" style="font-family: monospace;">{{ item.address }}</span>
+          <span class="leaf-col-actions">
+            <v-btn v-if="item.commandOfSupervised !== 0" variant="outlined" size="x-small" @click.stop="openWriteDialog(item)">Modify</v-btn>
+          </span>
+        </div>
       </template>
     </v-treeview>
     <PushValueDialog v-model="writeDialogOpen" :item="writeDialogItem" />
@@ -237,3 +243,39 @@ onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
 })
 </script>
+
+<style scoped>
+.leaf-columns {
+  display: grid;
+  grid-template-columns: 80px 120px 220px 220px 80px;
+  gap: 4px;
+  align-items: center;
+  min-width: 720px;
+}
+
+.leaf-col-type,
+.leaf-col-value,
+.leaf-col-timestamp,
+.leaf-col-address,
+.leaf-col-actions {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.column-header-row {
+  display: grid;
+  grid-template-columns: 80px 120px 220px 220px 80px;
+  gap: 4px;
+  min-width: 720px;
+  padding: 4px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+:deep(.v-treeview-item) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+</style>
