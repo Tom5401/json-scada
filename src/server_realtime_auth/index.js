@@ -184,6 +184,21 @@ async function ensureS7PlusAlarmIndexes() {
   }
 }
 
+async function ensureS7PlusChildNodesIndex() {
+  if (!db) return
+
+  try {
+    await db
+      .collection(COLL_REALTIME)
+      .createIndex(
+        { protocolSourceConnectionNumber: 1, protocolSourceBrowsePath: 1 },
+        { name: 'idx_connNum_browsePath' }
+      )
+  } catch (err) {
+    Log.log('Error ensuring s7plusChildNodes index: ' + err.message)
+  }
+}
+
 async function touchActiveTags(points) {
   if (!db || !Array.isArray(points) || points.length === 0) return
 
@@ -504,6 +519,81 @@ async function touchActiveTags(points) {
             })
             .toArray()
           res.status(200).send(docs)
+        } catch (err) {
+          Log.log(err)
+          res.status(200).send({ error: err.message })
+        }
+      }
+    )
+
+    // S7Plus list direct child nodes endpoint
+    app.use(
+      OPCAPI_AP + 'auth/listS7PlusChildNodes',
+      [authJwt.isAdmin],
+      async (req, res) => {
+        try {
+          if (!db) return res.status(200).send({ error: 'DB not connected' })
+
+          const connectionNumber = parseInt(req.query.connectionNumber, 10)
+          if (isNaN(connectionNumber))
+            return res
+              .status(400)
+              .send({ error: 'Missing or invalid connectionNumber query parameter' })
+
+          const path = req.query.path
+          // path may be empty string '' for root — do not add a non-empty guard
+          if (typeof path !== 'string')
+            return res
+              .status(400)
+              .send({ error: 'Missing or invalid path query parameter' })
+
+          // D-05: equality match — direct children only, not subtree
+          const children = await db
+            .collection(COLL_REALTIME)
+            .find(
+              {
+                protocolSourceConnectionNumber: connectionNumber,
+                protocolSourceBrowsePath: path,
+              },
+              {
+                projection: {
+                  _id: 1,
+                  ungroupedDescription: 1,
+                  protocolSourceBrowsePath: 1,
+                  protocolSourceConnectionNumber: 1,
+                  protocolSourceObjectAddress: 1,
+                  type: 1,
+                  value: 1,
+                  valueString: 1,
+                  commandOfSupervised: 1,
+                },
+              }
+            )
+            .toArray()
+
+          // D-01: scoped distinct to derive hasChildren
+          const childFullPaths = children.map(
+            (c) => c.protocolSourceBrowsePath + '.' + c.ungroupedDescription
+          )
+          let childrenSet = new Set()
+          if (childFullPaths.length > 0) {
+            const distinctPaths = await db
+              .collection(COLL_REALTIME)
+              .distinct('protocolSourceBrowsePath', {
+                protocolSourceConnectionNumber: connectionNumber,
+                protocolSourceBrowsePath: { $in: childFullPaths },
+              })
+            childrenSet = new Set(distinctPaths)
+          }
+
+          const result = children.map((c) => ({
+            ...c,
+            hasChildren: childrenSet.has(
+              c.protocolSourceBrowsePath + '.' + c.ungroupedDescription
+            ),
+          }))
+
+          res.status(200).send(result)
         } catch (err) {
           Log.log(err)
           res.status(200).send({ error: err.message })
@@ -2771,6 +2861,7 @@ async function touchActiveTags(points) {
             db = clientMongo.db(jsConfig.mongoDatabaseName)
             await ensureActiveTagRequestIndexes()
             await ensureS7PlusAlarmIndexes()
+            await ensureS7PlusChildNodesIndex()
           })
           .catch(function (err) {
             db = null
