@@ -22,14 +22,23 @@
           <v-chip size="x-small" class="ml-1">{{ item.type }}</v-chip>
           <code class="ml-2 text-caption">{{ formatLeafValue(item) }}</code>
           <span class="ml-2 text-caption text-medium-emphasis font-weight-light" style="font-family: monospace;">{{ item.address }}</span>
+          <v-btn
+            v-if="item.commandOfSupervised !== 0"
+            variant="outlined"
+            size="x-small"
+            class="ml-2"
+            @click.stop="openWriteDialog(item)"
+          >Modify</v-btn>
         </template>
       </template>
     </v-treeview>
+    <PushValueDialog v-model="writeDialogOpen" :item="writeDialogItem" />
   </v-container>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import PushValueDialog from './PushValueDialog.vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -38,6 +47,13 @@ const connectionNumber = ref(null)
 const treeItems = ref([])
 const openedNodes = ref([])
 let refreshTimer = null
+
+const writeDialogOpen = ref(false)
+const writeDialogItem = ref(null)
+function openWriteDialog(item) {
+  writeDialogItem.value = item
+  writeDialogOpen.value = true
+}
 
 function mapDocToNode(doc) {
   const segments = doc.ungroupedDescription.split('.')
