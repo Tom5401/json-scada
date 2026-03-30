@@ -572,27 +572,61 @@ async function touchActiveTags(points) {
             )
             .toArray()
 
-          // D-01: scoped distinct to derive hasChildren
-          const childFullPaths = children.map(
-            (c) => c.protocolSourceBrowsePath + '.' + c.ungroupedDescription
-          )
-          let childrenSet = new Set()
-          if (childFullPaths.length > 0) {
+          // Fix: hasChildren — a doc has children when its ungroupedDescription (= full path)
+          // appears as a protocolSourceBrowsePath value in another doc.
+          // Bug: old formula (browsePath + '.' + ungroupedDescription) was wrong because
+          // ungroupedDescription is already the full path, not the last segment.
+          const childUngroupedPaths = children.map((c) => c.ungroupedDescription)
+          let hasChildrenSet = new Set()
+          if (childUngroupedPaths.length > 0) {
             const distinctPaths = await db
               .collection(COLL_REALTIME)
               .distinct('protocolSourceBrowsePath', {
                 protocolSourceConnectionNumber: connectionNumber,
-                protocolSourceBrowsePath: { $in: childFullPaths },
+                protocolSourceBrowsePath: { $in: childUngroupedPaths },
               })
-            childrenSet = new Set(distinctPaths)
+            hasChildrenSet = new Set(distinctPaths)
           }
 
-          const result = children.map((c) => ({
-            ...c,
-            hasChildren: childrenSet.has(
-              c.protocolSourceBrowsePath + '.' + c.ungroupedDescription
-            ),
-          }))
+          // Synthesize virtual folder nodes for intermediate path segments that are not
+          // stored as their own realtimeData documents (e.g. UDT struct instances: BEWEGING).
+          // Query all distinct protocolSourceBrowsePath values that extend beyond path,
+          // then take the first new segment — each becomes a virtual folder node.
+          const prefix = path + '.'
+          const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\\\]/g, '\\$&')
+          const subBrowsePaths = await db
+            .collection(COLL_REALTIME)
+            .distinct('protocolSourceBrowsePath', {
+              protocolSourceConnectionNumber: connectionNumber,
+              protocolSourceBrowsePath: { $regex: '^' + escapedPrefix },
+            })
+
+          const existingChildIds = new Set(children.map((c) => c.ungroupedDescription))
+          const virtualFolderIds = new Set()
+          const virtualFolders = []
+          for (const subPath of subBrowsePaths) {
+            if (!subPath.startsWith(prefix)) continue
+            const nextSegment = subPath.slice(prefix.length).split('.')[0]
+            if (!nextSegment) continue
+            const folderId = prefix + nextSegment
+            if (!existingChildIds.has(folderId) && !virtualFolderIds.has(folderId)) {
+              virtualFolderIds.add(folderId)
+              virtualFolders.push({
+                ungroupedDescription: folderId,
+                protocolSourceBrowsePath: path,
+                protocolSourceConnectionNumber: connectionNumber,
+                hasChildren: true,
+              })
+            }
+          }
+
+          const result = [
+            ...virtualFolders,
+            ...children.map((c) => ({
+              ...c,
+              hasChildren: hasChildrenSet.has(c.ungroupedDescription),
+            })),
+          ]
 
           res.status(200).send(result)
         } catch (err) {
