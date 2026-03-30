@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-container fluid>
     <h2 class="mb-4">Tag Tree Browser — {{ dbName }}</h2>
 
@@ -7,6 +7,7 @@
       item-value="id"
       item-title="name"
       item-children="children"
+      :load-children="onLoadChildren"
       v-model:opened="openedNodes"
       open-strategy="multiple"
       density="compact"
@@ -19,7 +20,7 @@
       <template #append="{ item }">
         <template v-if="item.isLeaf">
           <v-chip size="x-small" class="ml-1">{{ item.type }}</v-chip>
-          <code class="ml-2 text-caption">{{ item.value }}</code>
+          <code class="ml-2 text-caption">{{ formatLeafValue(item) }}</code>
           <span class="ml-2 text-caption text-medium-emphasis font-weight-light" style="font-family: monospace;">{{ item.address }}</span>
         </template>
       </template>
@@ -38,79 +39,80 @@ const treeItems = ref([])
 const openedNodes = ref([])
 let refreshTimer = null
 
-function buildTree(docs, dbName) {
-  const root = { id: dbName, name: dbName, isLeaf: false, children: [] }
-  for (const doc of docs) {
-    // ungroupedDescription holds the full hierarchical path (e.g. "DB.Struct.Tag").
-    // protocolSourceBrowsePath is the PARENT path (everything before the last dot),
-    // which cannot distinguish leaves from intermediate folders.
-    const fullPath = doc.ungroupedDescription
-    if (!fullPath) continue
-    const segments = fullPath.split('.')
-    const remaining = segments.slice(1) // skip DB name (segments[0])
-    if (remaining.length === 0) continue
-    let current = root
-    for (let i = 0; i < remaining.length; i++) {
-      const seg = remaining[i]
-      const fullId = segments.slice(0, i + 2).join('.')
-      const isLast = i === remaining.length - 1
-      let child = current.children.find(c => c.id === fullId)
-      if (!child) {
-        child = {
-          id: fullId,
-          name: seg,
-          isLeaf: isLast,
-          children: isLast ? undefined : [],
-          ...(isLast ? {
-            type: doc.type || '',
-            value: doc.value,
-            address: doc.protocolSourceObjectAddress || '',
-          } : {})
-        }
-        current.children.push(child)
-      }
-      current = child
+function mapDocToNode(doc) {
+  const segments = doc.ungroupedDescription.split('.')
+  const name = segments[segments.length - 1]
+  if (doc.hasChildren) {
+    return {
+      id: doc.ungroupedDescription,
+      name,
+      isLeaf: false,
+      children: [],
     }
   }
-  return root
+  return {
+    id: doc.ungroupedDescription,
+    name,
+    isLeaf: true,
+    children: undefined,
+    type: doc.type || '',
+    value: doc.value,
+    valueString: doc.valueString,
+    address: doc.protocolSourceObjectAddress || '',
+    commandOfSupervised: doc.commandOfSupervised || 0,
+  }
 }
 
-function patchLeafValues(treeRoot, freshDocs) {
-  const docMap = new Map(freshDocs.map(d => [d.ungroupedDescription, d]))
+function formatLeafValue(item) {
+  if (item.type === 'digital') {
+    return item.value ? 'TRUE' : 'FALSE'
+  }
+  return item.value
+}
+
+function buildNodeMap(nodes, map = new Map()) {
+  for (const node of nodes) {
+    map.set(node.id, node)
+    if (Array.isArray(node.children)) buildNodeMap(node.children, map)
+  }
+  return map
+}
+
+function getExpandedParentPaths(treeNodes, openSet) {
+  const result = []
   function walk(node) {
-    if (node.isLeaf) {
-      const doc = docMap.get(node.id)
-      if (doc) node.value = doc.value
-    } else if (node.children) {
+    if (!node.isLeaf && Array.isArray(node.children) && node.children.length > 0 && openSet.has(node.id)) {
+      result.push(node.id)
       for (const child of node.children) walk(child)
     }
   }
-  walk(treeRoot)
+  for (const node of treeNodes) walk(node)
+  return result
 }
 
-function getExpandedLeafTags(treeRoot, openedIds) {
-  const openSet = new Set(openedIds)
+function getExpandedLeafTags(treeNodes, openSet) {
   const result = []
-  function walk(node, parentOpen) {
-    const isOpen = parentOpen || openSet.has(node.id)
-    if (node.isLeaf && parentOpen) {
+  function walk(node) {
+    if (node.isLeaf) {
       result.push({
         connectionNumber: connectionNumber.value,
         protocolSourceObjectAddress: node.address,
       })
-    } else if (node.children) {
-      for (const child of node.children) walk(child, isOpen)
+    } else if (Array.isArray(node.children) && openSet.has(node.id)) {
+      for (const child of node.children) walk(child)
     }
   }
-  if (treeRoot) {
-    for (const child of treeRoot.children || []) walk(child, openSet.has(treeRoot.id))
+  for (const root of treeNodes) {
+    if (Array.isArray(root.children) && openSet.has(root.id)) {
+      for (const child of root.children) walk(child)
+    }
   }
   return result
 }
 
 const touchExpandedLeafTags = async () => {
-  if (!treeItems.value[0]) return
-  const tags = getExpandedLeafTags(treeItems.value[0], openedNodes.value)
+  const openSet = new Set(openedNodes.value)
+  const tags = getExpandedLeafTags(treeItems.value, openSet)
   if (tags.length === 0) return // backend rejects empty array with 400
   try {
     await fetch('/Invoke/auth/touchS7PlusActiveTagRequests', {
@@ -123,34 +125,62 @@ const touchExpandedLeafTags = async () => {
   }
 }
 
-const refreshValues = async () => {
-  if (!dbName.value || !connectionNumber.value) return
+const onLoadChildren = async (item) => {
   try {
     const res = await fetch(
-      `/Invoke/auth/listS7PlusTagsForDb?connectionNumber=${connectionNumber.value}&dbName=${encodeURIComponent(dbName.value)}`
+      `/Invoke/auth/listS7PlusChildNodes?connectionNumber=${connectionNumber.value}&path=${encodeURIComponent(item.id)}`
     )
     const docs = await res.json()
-    if (Array.isArray(docs) && treeItems.value[0]) {
-      patchLeafValues(treeItems.value[0], docs)
-      await touchExpandedLeafTags()
-    }
+    item.children = Array.isArray(docs) ? docs.map(mapDocToNode) : []
   } catch (err) {
-    console.warn('Failed to refresh tag values:', err)
+    console.warn('Failed to load children for', item.id, err)
+    item.children = []
   }
 }
 
-const loadTree = async () => {
+const loadRootChildren = async () => {
   try {
     const res = await fetch(
-      `/Invoke/auth/listS7PlusTagsForDb?connectionNumber=${connectionNumber.value}&dbName=${encodeURIComponent(dbName.value)}`
+      `/Invoke/auth/listS7PlusChildNodes?connectionNumber=${connectionNumber.value}&path=${encodeURIComponent(dbName.value)}`
     )
     const docs = await res.json()
-    const root = buildTree(docs, dbName.value)
+    const children = Array.isArray(docs) ? docs.map(mapDocToNode) : []
+    const root = { id: dbName.value, name: dbName.value, isLeaf: false, children }
     treeItems.value = [root]
-    // Auto-expand first level (D-01): open root node so its direct children are visible
     openedNodes.value = [root.id]
   } catch (err) {
-    console.warn('Failed to load tag tree:', err)
+    console.warn('Failed to load root children:', err)
+  }
+}
+
+const refreshValues = async () => {
+  if (!dbName.value || !connectionNumber.value || !treeItems.value[0]) return
+  const openSet = new Set(openedNodes.value)
+  const expandedPaths = getExpandedParentPaths(treeItems.value, openSet)
+  if (expandedPaths.length === 0) return
+
+  const nodeMap = buildNodeMap(treeItems.value)
+  try {
+    const responses = await Promise.all(
+      expandedPaths.map(path =>
+        fetch(`/Invoke/auth/listS7PlusChildNodes?connectionNumber=${connectionNumber.value}&path=${encodeURIComponent(path)}`)
+          .then(r => r.json())
+          .catch(() => [])
+      )
+    )
+    for (const docs of responses) {
+      if (!Array.isArray(docs)) continue
+      for (const doc of docs) {
+        const node = nodeMap.get(doc.ungroupedDescription)
+        if (node && node.isLeaf) {
+          node.value = doc.value
+          node.valueString = doc.valueString
+        }
+      }
+    }
+    await touchExpandedLeafTags()
+  } catch (err) {
+    console.warn('Failed to refresh tag values:', err)
   }
 }
 
@@ -163,7 +193,7 @@ onMounted(async () => {
   dbName.value = route.query.db || ''
   connectionNumber.value = parseInt(route.query.connectionNumber, 10) || null
   if (dbName.value && connectionNumber.value) {
-    await loadTree()
+    await loadRootChildren()
   }
   refreshTimer = setInterval(() => refreshValues(), 5000)
 })
