@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-container fluid>
     <h2 class="mb-4">Datablock Browser</h2>
 
@@ -24,10 +24,21 @@
       class="elevation-1"
       :items-per-page="50"
     >
-      <template #[`item.actions`]="{ item }">
-        <v-btn size="x-small" variant="tonal" @click="browseDatablock(item)">
-          Browse Tags
-        </v-btn>
+      <template #item="{ item, columns }">
+        <tr v-if="item._isDivider" class="bg-grey-lighten-3">
+          <td :colspan="columns.length" class="text-subtitle-2 font-weight-bold py-1">
+            {{ item._label }}
+          </td>
+        </tr>
+        <tr v-else>
+          <td>{{ item.db_name }}</td>
+          <td>{{ item.db_number }}</td>
+          <td>
+            <v-btn size="x-small" variant="tonal" @click="browseDatablock(item)">
+              Browse Tags
+            </v-btn>
+          </td>
+        </tr>
       </template>
     </v-data-table>
   </v-container>
@@ -45,6 +56,10 @@ const headers = [
   { title: 'DB Number', key: 'db_number', sortable: true },
   { title: 'Actions', key: 'actions', sortable: false },
 ]
+
+const AREA_NAMES = ['IArea', 'QArea', 'MArea', 'S7Timers', 'S7Counters']
+const MEMORY_AREA_DIVIDER = { _isDivider: true, _label: 'Memory Areas', db_name: '', db_number: '' }
+const VIRTUAL_AREA_ROWS = AREA_NAMES.map((name) => ({ db_name: name, db_number: '\u2014', _isDivider: false }))
 
 onMounted(async () => {
   document.documentElement.style.overflowY = 'scroll'
@@ -73,7 +88,8 @@ watch(selectedConnection, async (newVal) => {
         `/Invoke/auth/listS7PlusDatablocks?connectionNumber=${newVal}`
       )
       const json = await res.json()
-      datablocks.value = Array.isArray(json) ? json : []
+      const real = Array.isArray(json) ? json : []
+      datablocks.value = [MEMORY_AREA_DIVIDER, ...VIRTUAL_AREA_ROWS, ...real]
     } catch (err) {
       console.warn('Failed to fetch datablocks:', err)
       datablocks.value = []
