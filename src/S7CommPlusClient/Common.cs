@@ -1,4 +1,4 @@
-/* 
+﻿/* 
  * S7CommPlus Client Protocol driver for {json:scada}
  * {json:scada} - Copyright (c) 2020-2026 - Ricardo L. Olsen
  * S7CommPlusDriver - Copyright (C) 2023 Thomas Wiens, th.wiens@gmx.de
@@ -158,6 +158,26 @@ partial class MainClass
         public string origin;
     }
 
+    // Deserializes a BSON double field that may have been stored as a string (e.g. "")
+    public class FlexibleDoubleSerializer : SerializerBase<double>
+    {
+        public override double Deserialize(BsonDeserializationContext context, BsonDeserializationArgs args)
+        {
+            var bsonType = context.Reader.GetCurrentBsonType();
+            if (bsonType == BsonType.String)
+            {
+                var str = context.Reader.ReadString();
+                if (string.IsNullOrEmpty(str)) return 0.0;
+                return double.Parse(str, System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return context.Reader.ReadDouble();
+        }
+        public override void Serialize(BsonSerializationContext context, BsonSerializationArgs args, double value)
+        {
+            context.Writer.WriteDouble(value);
+        }
+    }
+
     // Command from commandsQueue collection
     [BsonIgnoreExtraElements]
     public class rtCommand
@@ -165,6 +185,7 @@ partial class MainClass
         public BsonObjectId id { get; set; }
         [BsonDefaultValue(0.0)]
         public double protocolSourceConnectionNumber { get; set; }
+        [BsonSerializer(typeof(FlexibleDoubleSerializer))]
         [BsonDefaultValue(0.0)]
         public double protocolSourceCommonAddress { get; set; }
         [BsonDefaultValue("")]
