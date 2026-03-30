@@ -1,4 +1,4 @@
-/*
+﻿/*
  * A realtime point data HTTP web server for JSON SCADA.
  * {json:scada} - Copyright (c) 2020-2024 - Ricardo L. Olsen
  * This file is part of the JSON-SCADA distribution (https://github.com/riclolsen/json-scada).
@@ -555,6 +555,7 @@ async function touchActiveTags(points) {
               {
                 protocolSourceConnectionNumber: connectionNumber,
                 protocolSourceBrowsePath: path,
+                origin: { $ne: 'command' }, // exclude write-only command stub tags (supervised tag already carries commandOfSupervised)
               },
               {
                 projection: {
