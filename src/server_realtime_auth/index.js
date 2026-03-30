@@ -567,6 +567,7 @@ async function touchActiveTags(points) {
                   value: 1,
                   valueString: 1,
                   commandOfSupervised: 1,
+                  timeTagAtSource: 1,
                 },
               }
             )

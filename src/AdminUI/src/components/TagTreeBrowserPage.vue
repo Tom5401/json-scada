@@ -21,6 +21,7 @@
         <template v-if="item.isLeaf">
           <v-chip size="x-small" class="ml-1">{{ item.type }}</v-chip>
           <code class="ml-2 text-caption">{{ formatLeafValue(item) }}</code>
+          <span v-if="item.timeTagAtSource" class="ml-2 text-caption text-medium-emphasis" style="font-family: monospace;">{{ formatSourceTime(item.timeTagAtSource) }}</span>
           <span class="ml-2 text-caption text-medium-emphasis font-weight-light" style="font-family: monospace;">{{ item.address }}</span>
           <v-btn
             v-if="item.commandOfSupervised !== 0"
@@ -76,6 +77,7 @@ function mapDocToNode(doc) {
     valueString: doc.valueString,
     address: doc.protocolSourceObjectAddress || '',
     commandOfSupervised: doc.commandOfSupervised || 0,
+    timeTagAtSource: doc.timeTagAtSource || null,
   }
 }
 
@@ -84,6 +86,21 @@ function formatLeafValue(item) {
     return item.value ? 'TRUE' : 'FALSE'
   }
   return item.value
+}
+
+function formatSourceTime(isoString) {
+  if (!isoString) return ''
+  const d = new Date(isoString)
+  if (isNaN(d.getTime())) return ''
+  return d.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+  })
 }
 
 function buildNodeMap(nodes, map = new Map()) {
@@ -191,6 +208,7 @@ const refreshValues = async () => {
         if (node && node.isLeaf) {
           node.value = doc.value
           node.valueString = doc.valueString
+          node.timeTagAtSource = doc.timeTagAtSource || null
         }
       }
     }
