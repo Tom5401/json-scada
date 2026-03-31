@@ -4,13 +4,15 @@ echo - Dotnet Core SDK 8.0
 echo - Golang 1.22+
 echo - Node.js 20+
 
-set JSPATH=\json-scada
+rem set JSPATH=\json-scada
+set JSPATH=c:\Users\tnielen\Documents\Levvel_PoC\dev\json-scada
 set SRCPATH=%JSPATH%\src
 set BINPATH=%JSPATH%\bin
 set BINWINPATH=%JSPATH%\demo-docker\bin_win
-set NPM=%JSPATH%\platform-windows\nodejs-runtime\npm
-set NPX=%JSPATH%\platform-windows\nodejs-runtime\npx
-rem _set NPM="%programfiles%\nodejs\npm"
+rem set NPM=%JSPATH%\platform-windows\nodejs-runtime\npm
+rem set NPX=%JSPATH%\platform-windows\nodejs-runtime\npx
+set NPM=npm
+set NPX=npx
 
 cd %JSPATH%
 mkdir bin
@@ -62,6 +64,9 @@ rem cd %SRCPATH%\libplctag\libplctag.NET\src\libplctag
 rem dotnet build --no-self-contained --runtime win-x64 -c Release -o %BINPATH%
 cd %SRCPATH%\libplctag\PLCTagsClient
 dotnet publish --no-self-contained --runtime win-x64 -p:PublishReadyToRun=true -c Release -o %BINPATH% PLCTagsClient.csproj
+
+cd %SRCPATH%\S7CommPlusClient
+dotnet publish --no-self-contained --runtime win-x64 -p:PublishReadyToRun=true -c Release -o %BINPATH% S7CommPlusClient.csproj
 
 cd %SRCPATH%\logrotate\  
 dotnet publish --no-self-contained --runtime win-x64 -p:PublishReadyToRun=true -c Release -o %BINPATH% logrotate.csproj

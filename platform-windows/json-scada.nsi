@@ -50,7 +50,7 @@ Caption "{json:scada} Installer ${VERSION} ${DATEBAR}"
 Icon "..\src\AdminUI\public\images\j-s-256.ico"
 
 !define /date DATE "%d_%m_%Y"
-OutFile "installer-release\json-scada_setup_${VERSION}.exe"
+OutFile "installer-release\json-scada_setup_${VERSION}_S7Fork.exe"
 
 VIProductVersion ${VERSION_}
 VIAddVersionKey ProductName "JSON SCADA"
@@ -140,7 +140,8 @@ SetRegView 64
   nsExec::Exec 'net stop JSON_SCADA_opcdaclient' 
   nsExec::Exec 'net stop JSON_SCADA_opcuaserver' 
   nsExec::Exec 'net stop JSON_SCADA_mqttsparkplugclient'  
-  nsExec::Exec 'net stop JSON_SCADA_plc4xclient'  
+  nsExec::Exec 'net stop JSON_SCADA_plc4xclient'
+  nsExec::Exec 'net stop JSON_SCADA_s7commplusclient'
   nsExec::Exec 'net stop JSON_SCADA_telegraf_runtime'
   nsExec::Exec 'net stop JSON_SCADA_telegraf_listener'
   nsExec::Exec 'net stop JSON_SCADA_nginx'
@@ -719,6 +720,11 @@ Section "Uninstall"
   ExecWait `"${SC}" stop "JSON_SCADA_plc4xclient"`
   Sleep 50
   ExecWait `"${SC}" delete "JSON_SCADA_plc4xclient"`
+  ClearErrors
+
+  ExecWait `"${SC}" stop "JSON_SCADA_s7commplusclient"`
+  Sleep 50
+  ExecWait `"${SC}" delete "JSON_SCADA_s7commplusclient"`
   ClearErrors
 
   ExecWait `"${SC}" stop "JSON_SCADA_telegraf_listener"`
