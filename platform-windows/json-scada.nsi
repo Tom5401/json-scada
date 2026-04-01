@@ -5,8 +5,9 @@
 ; NSIS (Nullsoft Scriptable Install System) - http://nsis.sourceforge.net/Main_Page
 
 SetCompress Auto
-SetCompressor lzma
-SetCompressorDictSize 32
+; SetCompressor lzma
+; SetCompressorDictSize 32
+SetCompressor zlib
 SetDatablockOptimize Off
 
 Unicode True
@@ -110,6 +111,14 @@ ${EndIf}
 ${DisableX64FSRedirection}
 
 SetRegView 64
+
+; CHECK RUNTIME PACK
+; Verify the runtime pack has been extracted to the install directory before proceeding.
+; Extract json-scada-runtimes.7z to C:\json-scada\ using 7-Zip before running this installer.
+IfFileExists "$INSTDIR\platform-windows\grafana-runtime\bin\grafana-server.exe" runtimes_ok 0
+  MessageBox MB_OK|MB_ICONEXCLAMATION "Runtime pack not found!$\n$\nPlease extract json-scada-runtimes.7z to $INSTDIR before running this installer.$\n$\nSee the build guide for details."
+  Abort
+runtimes_ok:
 
 ; Closes all processes
   nsExec::Exec 'net stop JSON_SCADA_grafana'
@@ -287,8 +296,9 @@ SetRegView 64
   ; We use PowerShell helpers (shipped with the installer) instead of WMIC. No DISM install attempted.
   Sleep 1000
   
-  SetOutPath $INSTDIR\platform-windows\nodejs-runtime
-  File /a /r "..\platform-windows\nodejs-runtime\*.*"
+  ; runtime-pack: nodejs-runtime
+  ; SetOutPath $INSTDIR\platform-windows\nodejs-runtime
+  ; File /a /r "..\platform-windows\nodejs-runtime\*.*"
 
   SetOutPath $INSTDIR\platform-windows\telegraf-runtime
   File /a "..\platform-windows\telegraf-runtime\telegraf.exe"
@@ -297,14 +307,17 @@ SetRegView 64
   SetOutPath $INSTDIR\docs
   File /a /r "..\docs\*.*"
   
-  SetOutPath $INSTDIR\platform-windows\jdk-runtime
-  File /a /r "..\platform-windows\jdk-runtime\*.*"
+  ; runtime-pack: jdk-runtime
+  ; SetOutPath $INSTDIR\platform-windows\jdk-runtime
+  ; File /a /r "..\platform-windows\jdk-runtime\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\metabase-runtime
-  File /a "..\platform-windows\metabase-runtime\metabase.jar"
+  ; runtime-pack: metabase-runtime
+  ; SetOutPath $INSTDIR\platform-windows\metabase-runtime
+  ; File /a "..\platform-windows\metabase-runtime\metabase.jar"
 
-  SetOutPath $INSTDIR\platform-windows\grafana-runtime
-  File /a /r "..\platform-windows\grafana-runtime\*.*"
+  ; runtime-pack: grafana-runtime
+  ; SetOutPath $INSTDIR\platform-windows\grafana-runtime
+  ; File /a /r "..\platform-windows\grafana-runtime\*.*"
 
   SetOutPath $INSTDIR\mongo_seed_demo
   File /a /r "..\demo-docker\mongo_seed\files\*.*"
@@ -315,17 +328,21 @@ SetRegView 64
   SetOutPath $INSTDIR\mongo_seed
   File /a /r "..\mongo_seed\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\mongodb-compass-runtime
-  File /a /r "..\platform-windows\mongodb-compass-runtime\*.*"
+  ; runtime-pack: mongodb-compass-runtime
+  ; SetOutPath $INSTDIR\platform-windows\mongodb-compass-runtime
+  ; File /a /r "..\platform-windows\mongodb-compass-runtime\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\mongodb-runtime
-  File /a /r /x *.pdb "..\platform-windows\mongodb-runtime\*.*"
+  ; runtime-pack: mongodb-runtime
+  ; SetOutPath $INSTDIR\platform-windows\mongodb-runtime
+  ; File /a /r /x *.pdb "..\platform-windows\mongodb-runtime\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\mongodb-conf
-  File /a /r "..\platform-windows\mongodb-conf\*.*"
+  ; runtime-pack: mongodb-conf
+  ; SetOutPath $INSTDIR\platform-windows\mongodb-conf
+  ; File /a /r "..\platform-windows\mongodb-conf\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\postgresql-runtime
-  File /a /r /x *.pdb "..\platform-windows\postgresql-runtime\*.*"
+  ; runtime-pack: postgresql-runtime
+  ; SetOutPath $INSTDIR\platform-windows\postgresql-runtime
+  ; File /a /r /x *.pdb "..\platform-windows\postgresql-runtime\*.*"
 
   SetOutPath $INSTDIR\sql
   File /a "..\sql\*.bat"
@@ -334,8 +351,9 @@ SetRegView 64
   File /a "..\sql\grafanaappdb.sql"
   File /a "..\sql\*.md"
 
-  SetOutPath $INSTDIR\platform-windows\nginx_php-runtime
-  File /r /x *.log "..\platform-windows\nginx_php-runtime\*.*" 
+  ; runtime-pack: nginx_php-runtime
+  ; SetOutPath $INSTDIR\platform-windows\nginx_php-runtime
+  ; File /r /x *.log "..\platform-windows\nginx_php-runtime\*.*"
 
   SetOutPath $INSTDIR\conf-templates
   File /a "..\conf-templates\*.*"
@@ -495,19 +513,21 @@ SetRegView 64
   SetOutPath $INSTDIR\src\custom-developments\transformer_with_command
   File /a /r /x node_modules "..\src\custom-developments\transformer_with_command\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\browser-runtime
-  File /a /r "..\platform-windows\browser-runtime\*.*"
+  ; runtime-pack: browser-runtime
+  ; SetOutPath $INSTDIR\platform-windows\browser-runtime
+  ; File /a /r "..\platform-windows\browser-runtime\*.*"
 
-  SetOutPath $INSTDIR\platform-windows\browser-data
-  File /a /r "..\platform-windows\browser-data\*.*"
+  ; runtime-pack: browser-data
+  ; SetOutPath $INSTDIR\platform-windows\browser-data
+  ; File /a /r "..\platform-windows\browser-data\*.*"
 
-  ; ua-edge-translalor
-  SetOutPath $INSTDIR\platform-windows\ua-edge-translator-runtime
-  File /a /r "..\platform-windows\ua-edge-translator-runtime\*.*"
+  ; runtime-pack: ua-edge-translator-runtime
+  ; SetOutPath $INSTDIR\platform-windows\ua-edge-translator-runtime
+  ; File /a /r "..\platform-windows\ua-edge-translator-runtime\*.*"
 
-  ; Inkscape + SCADA extension
-  SetOutPath $INSTDIR\platform-windows\inkscape-runtime
-  File /a /r "..\platform-windows\inkscape-runtime\*.*"
+  ; runtime-pack: inkscape-runtime (Inkscape + SCADA extension)
+  ; SetOutPath $INSTDIR\platform-windows\inkscape-runtime
+  ; File /a /r "..\platform-windows\inkscape-runtime\*.*"
   ;SetOutPath $INSTDIR\platform-windows\inkscape-runtime\share\inkscape\extensions
   ;File /a /r "..\src\inkscape-extension\scada.inx"
   ;File /a /r "..\src\inkscape-extension\scada.py"

@@ -5,7 +5,8 @@ echo - Golang 1.22+
 echo - Node.js 20+
 
 rem set JSPATH=\json-scada
-set JSPATH=c:\Users\tnielen\Documents\Levvel_PoC\dev\json-scada
+rem set JSPATH=c:\Users\tnielen\Documents\Levvel_PoC\dev\json-scada
+set JSPATH=c:\jsbuild
 set SRCPATH=%JSPATH%\src
 set BINPATH=%JSPATH%\bin
 set BINWINPATH=%JSPATH%\demo-docker\bin_win
